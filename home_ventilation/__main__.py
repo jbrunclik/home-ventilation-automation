@@ -4,6 +4,8 @@ import logging
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from home_ventilation.config import load_config
 from home_ventilation.daemon import run
 
@@ -20,6 +22,8 @@ def main() -> None:
         help="Path to TOML config file (default: config.toml)",
     )
     args = parser.parse_args()
+
+    load_dotenv()
 
     logging.basicConfig(
         level=logging.INFO,
