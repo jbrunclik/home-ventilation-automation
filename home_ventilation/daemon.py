@@ -15,12 +15,19 @@ from home_ventilation.shelly import get_switch_inputs, set_fan_speed
 logger = logging.getLogger(__name__)
 
 
+_SHUTDOWN_TIMEOUT_SECONDS = 10
+
+
 async def run(config: Config) -> None:
-    shutdown = asyncio.Event()
     loop = asyncio.get_running_loop()
+    main_task = asyncio.current_task()
+
+    def _request_shutdown():
+        if main_task and not main_task.done():
+            main_task.cancel()
 
     for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, shutdown.set)
+        loop.add_signal_handler(sig, _request_shutdown)
 
     hb = HomebridgeClient(
         host=config.homebridge.host,
@@ -29,7 +36,7 @@ async def run(config: Config) -> None:
         password=config.homebridge.password,
     )
 
-    shelly_client = httpx.AsyncClient()
+    shelly_client = httpx.AsyncClient(timeout=10.0)
 
     # Per-fan state
     fan_states: dict[str, FanState] = {fan.name: FanState() for fan in config.fans}
@@ -47,7 +54,7 @@ async def run(config: Config) -> None:
     )
 
     try:
-        while not shutdown.is_set():
+        while True:
             now = datetime.now(timezone.utc)
             monotonic_now = time.monotonic()
 
@@ -114,23 +121,28 @@ async def run(config: Config) -> None:
                 except Exception:
                     logger.exception("[%s] Error in poll cycle", fan_cfg.name)
 
-            try:
-                await asyncio.wait_for(
-                    shutdown.wait(), timeout=config.switch_poll_interval_seconds
-                )
-            except asyncio.TimeoutError:
-                pass
+            await asyncio.sleep(config.switch_poll_interval_seconds)
 
+    except asyncio.CancelledError:
+        pass
     finally:
         logger.info("Shutting down")
+        # Remove signal handlers so a second signal force-kills immediately
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.remove_signal_handler(sig)
+
         await shelly_client.aclose()
         await hb.close()
 
-        # Turn off all fans on shutdown
-        async with httpx.AsyncClient() as client:
-            for fan_cfg in config.fans:
-                try:
-                    await set_fan_speed(client, fan_cfg.shelly_host, FanSpeed.OFF)
-                    logger.info("[%s] Turned off on shutdown", fan_cfg.name)
-                except Exception:
-                    logger.exception("[%s] Failed to turn off on shutdown", fan_cfg.name)
+        # Turn off all fans on shutdown (with timeout)
+        try:
+            async with asyncio.timeout(_SHUTDOWN_TIMEOUT_SECONDS):
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    for fan_cfg in config.fans:
+                        try:
+                            await set_fan_speed(client, fan_cfg.shelly_host, FanSpeed.OFF)
+                            logger.info("[%s] Turned off on shutdown", fan_cfg.name)
+                        except Exception:
+                            logger.exception("[%s] Failed to turn off on shutdown", fan_cfg.name)
+        except TimeoutError:
+            logger.warning("Timed out turning off fans during shutdown")
