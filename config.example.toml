@@ -1,0 +1,26 @@
+poll_interval_seconds = 30
+switch_poll_interval_seconds = 1
+manual_override_minutes = 15
+
+[thresholds]
+co2_low = 800
+co2_high = 1200
+humidity_low = 60.0
+humidity_high = 70.0
+
+[homebridge]
+host = "192.168.1.1"
+port = 8581
+# credentials in .env: HOMEBRIDGE_USERNAME, HOMEBRIDGE_PASSWORD
+
+[fans.master_bathroom]
+shelly_host = "192.168.1.120"
+co2_accessories = ["Master Bedroom CO2"]
+humidity_accessories = ["Master Bathroom Humidity"]
+switch_inputs = [0]
+
+[fans.toilet]
+shelly_host = "192.168.1.121"
+co2_accessories = ["Kids Bedroom 1 CO2", "Kids Bedroom 2 CO2"]
+humidity_accessories = ["Kids Bathroom Humidity", "Toilet Humidity"]
+switch_inputs = [0, 1]

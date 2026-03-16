@@ -1,0 +1,15 @@
+[Unit]
+Description=Home Ventilation Automation
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/home-ventilation/.env
+ExecStart=%h/.local/bin/home-ventilation --config %h/.config/home-ventilation/config.toml
+Restart=on-failure
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target
