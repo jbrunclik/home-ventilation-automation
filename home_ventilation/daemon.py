@@ -75,19 +75,23 @@ async def run(config: Config) -> None:
                 try:
                     state = fan_states[fan_cfg.name]
 
-                    # Read sensors only on the slow cadence
+                    # Poll Homebridge on the slow cadence (network I/O)
                     if read_sensors:
                         co2_values: list[int | None] = []
                         for acc_name in fan_cfg.co2_accessories:
                             co2_values.append(await hb.get_co2(acc_name))
                         cached_co2[fan_cfg.name] = co2_values
 
-                        humidity_values: list[float | None] = []
+                        hb_humidity: list[float | None] = []
                         for acc_name in fan_cfg.humidity_accessories:
-                            humidity_values.append(await hb.get_humidity(acc_name))
-                        for sensor_ip in fan_cfg.humidity_sensor_ips:
-                            humidity_values.append(sensor_cache.get_humidity(sensor_ip, now))
-                        cached_humidity[fan_cfg.name] = humidity_values
+                            hb_humidity.append(await hb.get_humidity(acc_name))
+                        cached_humidity[fan_cfg.name] = hb_humidity
+
+                    # Webhook humidity: read fresh every cycle (in-memory lookup)
+                    webhook_humidity = [
+                        sensor_cache.get_humidity(ip, now) for ip in fan_cfg.humidity_sensor_ips
+                    ]
+                    humidity_values = cached_humidity[fan_cfg.name] + webhook_humidity
 
                     # Read switch inputs every cycle (fast)
                     if fan_cfg.shelly_host:
@@ -98,10 +102,10 @@ async def run(config: Config) -> None:
                     else:
                         relevant_switches = {}
 
-                    # Decide speed using cached sensor values
+                    # Decide speed
                     new_speed, new_state = decide_speed(
                         co2_values=cached_co2[fan_cfg.name],
-                        humidity_values=cached_humidity[fan_cfg.name],
+                        humidity_values=humidity_values,
                         switch_states=relevant_switches,
                         current_state=state,
                         thresholds=config.thresholds,
@@ -117,7 +121,7 @@ async def run(config: Config) -> None:
                             state.current_speed.value,
                             new_speed.value,
                             cached_co2[fan_cfg.name],
-                            cached_humidity[fan_cfg.name],
+                            humidity_values,
                         )
                         if fan_cfg.shelly_host:
                             await set_fan_speed(shelly_client, fan_cfg.shelly_host, new_speed)
@@ -127,7 +131,7 @@ async def run(config: Config) -> None:
                             fan_cfg.name,
                             new_speed.value,
                             cached_co2[fan_cfg.name],
-                            cached_humidity[fan_cfg.name],
+                            humidity_values,
                         )
 
                     fan_states[fan_cfg.name] = new_state
