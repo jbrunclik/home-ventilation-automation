@@ -21,13 +21,10 @@ format: ## Auto-format and fix lint issues
 test: ## Run pytest
 	uv run pytest tests/ -v
 
-deploy: ## Deploy config, systemd unit, enable service
-	mkdir -p ~/.config/home-ventilation
-	cp config.toml ~/.config/home-ventilation/config.toml
-	cp .env ~/.config/home-ventilation/.env
-	chmod 600 ~/.config/home-ventilation/.env
+deploy: ## Deploy systemd unit (config stays in repo), enable service
+	chmod 600 .env
 	mkdir -p ~/.config/systemd/user
-	cp systemd/home-ventilation.service ~/.config/systemd/user/
+	sed 's|@REPO_DIR@|$(CURDIR)|g' systemd/home-ventilation.service > ~/.config/systemd/user/home-ventilation.service
 	systemctl --user daemon-reload
 	systemctl --user enable --now home-ventilation
 

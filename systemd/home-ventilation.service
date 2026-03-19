@@ -5,8 +5,9 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-EnvironmentFile=%h/.config/home-ventilation/.env
-ExecStart=%h/.local/bin/home-ventilation --config %h/.config/home-ventilation/config.toml
+WorkingDirectory=@REPO_DIR@
+EnvironmentFile=@REPO_DIR@/.env
+ExecStart=@REPO_DIR@/.venv/bin/home-ventilation --config @REPO_DIR@/config.toml
 Restart=on-failure
 RestartSec=10
 Environment=PYTHONUNBUFFERED=1

@@ -26,7 +26,7 @@ make dev       # install all deps (uv sync)
 make lint      # ruff check + format check
 make format    # ruff format + auto-fix
 make test      # pytest
-make deploy    # copy config, install systemd unit, enable service
+make deploy    # install systemd unit, enable service
 make logs      # follow journald logs
 make status    # systemctl status
 make restart   # systemctl restart

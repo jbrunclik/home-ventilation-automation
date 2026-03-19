@@ -121,7 +121,7 @@ curl -X POST http://localhost:8090/webhook/shelly \
 
 ## Deployment
 
-The daemon runs as a user systemd service. `make deploy` copies config files to `~/.config/home-ventilation/` and installs the service unit.
+The daemon runs as a user systemd service. `make deploy` installs the systemd unit (templated with the repo path) — config and `.env` stay in the repo directory.
 
 ```bash
 make deploy   # install and start
