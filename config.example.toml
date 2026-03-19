@@ -2,6 +2,11 @@ poll_interval_seconds = 30
 switch_poll_interval_seconds = 1
 manual_override_minutes = 15
 
+# Webhook server for Shelly H&T Gen3 sensors (battery-powered, push via webhook)
+webhook_port = 8090
+# sensor_cache_path = "/dev/shm/home-ventilation-sensor-cache.json"  # default: ramdisk
+humidity_stale_minutes = 120  # ignore readings older than this
+
 [thresholds]
 co2_low = 800
 co2_high = 1200
@@ -17,6 +22,7 @@ port = 8581
 shelly_host = "192.168.1.120"
 co2_accessories = ["Master Bedroom CO2"]
 humidity_accessories = ["Master Bathroom Humidity"]
+humidity_sensor_ids = ["shellyhtg3-XXXXXXXXXXXX"]  # Shelly H&T Gen3 device IDs
 switch_inputs = [0]
 
 [fans.toilet]

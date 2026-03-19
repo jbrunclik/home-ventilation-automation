@@ -1,6 +1,6 @@
 import os
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -27,6 +27,7 @@ class FanConfig:
     co2_accessories: list[str]
     humidity_accessories: list[str]
     switch_inputs: list[int]
+    humidity_sensor_ids: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,9 @@ class Config:
     thresholds: ThresholdsConfig
     homebridge: HomebridgeConfig
     fans: list[FanConfig]
+    webhook_port: int = 8090
+    sensor_cache_path: str = "/dev/shm/home-ventilation-sensor-cache.json"
+    humidity_stale_minutes: int = 120
 
 
 def load_config(path: Path) -> Config:
@@ -75,8 +79,15 @@ def load_config(path: Path) -> Config:
                 co2_accessories=fan_data.get("co2_accessories", []),
                 humidity_accessories=fan_data.get("humidity_accessories", []),
                 switch_inputs=fan_data.get("switch_inputs", []),
+                humidity_sensor_ids=fan_data.get("humidity_sensor_ids", []),
             )
         )
+
+    # Resolve sensor_cache_path: use absolute as-is, resolve relative to config dir
+    cache_path_raw = raw.get("sensor_cache_path", "/dev/shm/home-ventilation-sensor-cache.json")
+    cache_path = Path(cache_path_raw)
+    if not cache_path.is_absolute():
+        cache_path = path.parent / cache_path
 
     return Config(
         poll_interval_seconds=raw.get("poll_interval_seconds", 30),
@@ -85,4 +96,7 @@ def load_config(path: Path) -> Config:
         thresholds=thresholds,
         homebridge=homebridge,
         fans=fans,
+        webhook_port=raw.get("webhook_port", 8090),
+        sensor_cache_path=str(cache_path),
+        humidity_stale_minutes=raw.get("humidity_stale_minutes", 120),
     )

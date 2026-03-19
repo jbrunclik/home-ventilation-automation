@@ -10,7 +10,9 @@ from home_ventilation.config import Config
 from home_ventilation.fan import decide_speed
 from home_ventilation.homebridge import HomebridgeClient
 from home_ventilation.models import FanSpeed, FanState
+from home_ventilation.sensor_cache import SensorCache
 from home_ventilation.shelly import get_switch_inputs, set_fan_speed
+from home_ventilation.webhook import create_webhook_app, start_webhook_server
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,10 @@ async def run(config: Config) -> None:
 
     shelly_client = httpx.AsyncClient(timeout=10.0)
 
+    sensor_cache = SensorCache(config.sensor_cache_path, config.humidity_stale_minutes)
+    webhook_app = create_webhook_app(sensor_cache)
+    webhook_runner = await start_webhook_server(webhook_app, config.webhook_port)
+
     # Per-fan state
     fan_states: dict[str, FanState] = {fan.name: FanState() for fan in config.fans}
 
@@ -47,9 +53,11 @@ async def run(config: Config) -> None:
     last_sensor_poll = 0.0  # force immediate first sensor read
 
     logger.info(
-        "Starting ventilation daemon (sensors every %ds, switches every %ds), %d fan(s)",
+        "Starting ventilation daemon (sensors every %ds, switches every %ds, webhook port %d),"
+        " %d fan(s)",
         config.poll_interval_seconds,
         config.switch_poll_interval_seconds,
+        config.webhook_port,
         len(config.fans),
     )
 
@@ -77,6 +85,8 @@ async def run(config: Config) -> None:
                         humidity_values: list[float | None] = []
                         for acc_name in fan_cfg.humidity_accessories:
                             humidity_values.append(await hb.get_humidity(acc_name))
+                        for sensor_id in fan_cfg.humidity_sensor_ids:
+                            humidity_values.append(sensor_cache.get_humidity(sensor_id, now))
                         cached_humidity[fan_cfg.name] = humidity_values
 
                     # Read switch inputs every cycle (fast)
@@ -131,6 +141,7 @@ async def run(config: Config) -> None:
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.remove_signal_handler(sig)
 
+        await webhook_runner.cleanup()
         await shelly_client.aclose()
         await hb.close()
 
