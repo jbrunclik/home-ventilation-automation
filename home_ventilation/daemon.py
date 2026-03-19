@@ -90,10 +90,13 @@ async def run(config: Config) -> None:
                         cached_humidity[fan_cfg.name] = humidity_values
 
                     # Read switch inputs every cycle (fast)
-                    switch_states = await get_switch_inputs(shelly_client, fan_cfg.shelly_host)
-                    relevant_switches = {
-                        k: v for k, v in switch_states.items() if k in fan_cfg.switch_inputs
-                    }
+                    if fan_cfg.shelly_host:
+                        switch_states = await get_switch_inputs(shelly_client, fan_cfg.shelly_host)
+                        relevant_switches = {
+                            k: v for k, v in switch_states.items() if k in fan_cfg.switch_inputs
+                        }
+                    else:
+                        relevant_switches = {}
 
                     # Decide speed using cached sensor values
                     new_speed, new_state = decide_speed(
@@ -116,7 +119,8 @@ async def run(config: Config) -> None:
                             cached_co2[fan_cfg.name],
                             cached_humidity[fan_cfg.name],
                         )
-                        await set_fan_speed(shelly_client, fan_cfg.shelly_host, new_speed)
+                        if fan_cfg.shelly_host:
+                            await set_fan_speed(shelly_client, fan_cfg.shelly_host, new_speed)
                     elif read_sensors:
                         logger.debug(
                             "[%s] Speed unchanged: %s (CO2=%s, humidity=%s)",
@@ -150,6 +154,8 @@ async def run(config: Config) -> None:
             async with asyncio.timeout(_SHUTDOWN_TIMEOUT_SECONDS):
                 async with httpx.AsyncClient(timeout=5.0) as client:
                     for fan_cfg in config.fans:
+                        if not fan_cfg.shelly_host:
+                            continue
                         try:
                             await set_fan_speed(client, fan_cfg.shelly_host, FanSpeed.OFF)
                             logger.info("[%s] Turned off on shutdown", fan_cfg.name)

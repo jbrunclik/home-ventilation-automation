@@ -23,10 +23,10 @@ class HomebridgeConfig:
 @dataclass(frozen=True)
 class FanConfig:
     name: str
-    shelly_host: str
-    co2_accessories: list[str]
-    humidity_accessories: list[str]
-    switch_inputs: list[int]
+    shelly_host: str = ""
+    co2_accessories: list[str] = field(default_factory=list)
+    humidity_accessories: list[str] = field(default_factory=list)
+    switch_inputs: list[int] = field(default_factory=list)
     humidity_sensor_ids: list[str] = field(default_factory=list)
 
 
@@ -75,7 +75,7 @@ def load_config(path: Path) -> Config:
         fans.append(
             FanConfig(
                 name=name,
-                shelly_host=fan_data["shelly_host"],
+                shelly_host=fan_data.get("shelly_host", ""),
                 co2_accessories=fan_data.get("co2_accessories", []),
                 humidity_accessories=fan_data.get("humidity_accessories", []),
                 switch_inputs=fan_data.get("switch_inputs", []),
