@@ -22,7 +22,7 @@ port = 8581
 shelly_host = "192.168.1.120"
 co2_accessories = ["Master Bedroom CO2"]
 humidity_accessories = ["Master Bathroom Humidity"]
-humidity_sensor_ids = ["shellyhtg3-XXXXXXXXXXXX"]  # Shelly H&T Gen3 device IDs
+humidity_sensor_ips = ["10.0.0.50"]  # Shelly H&T Gen3 IPs (identified by source IP)
 switch_inputs = [0]
 
 [fans.toilet]

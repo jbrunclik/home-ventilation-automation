@@ -51,7 +51,7 @@ Each fan section (`[fans.<name>]`) specifies:
 - `shelly_host` — IP of the Shelly 2PM Gen4
 - `co2_accessories` — Homebridge accessory names for CO2 sensors
 - `humidity_accessories` — Homebridge accessory names for humidity sensors
-- `humidity_sensor_ids` — Shelly H&T Gen3 device IDs for webhook humidity
+- `humidity_sensor_ips` — Shelly H&T Gen3 IPs for webhook humidity (identified by source IP)
 - `switch_inputs` — Shelly input IDs for wall switches
 
 ### `.env`
@@ -85,22 +85,18 @@ Shelly H&T Gen3 sensors are battery-powered and spend most of their time in deep
 
 ### Registering the webhook on the sensor
 
-**Via Shelly web UI:** Go to the device's web interface → Actions → add a webhook for `temperature.change` and `humidity.change` events pointing to `http://<daemon-ip>:8090/webhook/shelly`.
+**Via Shelly web UI:** Go to the device's web interface → Actions → add a `humidity.change` action with URL:
+```
+http://<daemon-ip>:8090/webhook/shelly?hum=$humidity
+```
+Use the `$humidity` template variable to pass the reading as a query parameter. The sensor is identified by its source IP, so no device ID is needed in the URL.
 
 **Via RPC API:**
 
 ```bash
-# Register webhook
 curl -s "http://<shelly-ip>/rpc/Webhook.Create" \
-  -d '{"cid":1,"enable":true,"event":"temperature.change","urls":["http://<daemon-ip>:8090/webhook/shelly"]}'
-
-curl -s "http://<shelly-ip>/rpc/Webhook.Create" \
-  -d '{"cid":2,"enable":true,"event":"humidity.change","urls":["http://<daemon-ip>:8090/webhook/shelly"]}'
+  -d '{"cid":1,"enable":true,"event":"humidity.change","urls":["http://<daemon-ip>:8090/webhook/shelly?hum=$humidity"]}'
 ```
-
-### Finding the device ID
-
-The device ID is the `src` field in webhook payloads (e.g. `shellyhtg3-8cbfeaa633fc`). You can also find it on the device's web UI or by checking the mDNS name.
 
 ### Lowering humidity report threshold
 
@@ -114,9 +110,7 @@ curl -s "http://<shelly-ip>/rpc/Humidity.SetConfig" \
 ### Testing the webhook
 
 ```bash
-curl -X POST http://localhost:8090/webhook/shelly \
-  -H 'Content-Type: application/json' \
-  -d '{"src":"shellyhtg3-test","method":"NotifyStatus","params":{"humidity:0":{"rh":65.0},"temperature:0":{"tC":23.5}}}'
+curl "http://localhost:8090/webhook/shelly?hum=65.0"
 ```
 
 ## Deployment

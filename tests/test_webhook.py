@@ -15,58 +15,24 @@ def webhook_client(sensor_cache, aiohttp_client):
     return aiohttp_client(app)
 
 
-async def test_valid_humidity_payload(webhook_client, sensor_cache):
+async def test_valid_humidity_param(webhook_client, sensor_cache):
     client = await webhook_client
-    payload = {
-        "src": "shellyhtg3-test",
-        "method": "NotifyStatus",
-        "params": {
-            "ts": 1710000000.00,
-            "humidity:0": {"rh": 65.2},
-            "temperature:0": {"tC": 23.5, "tF": 74.3},
-        },
-    }
-    resp = await client.post("/webhook/shelly", json=payload)
+    resp = await client.get("/webhook/shelly", params={"hum": "65.2"})
     assert resp.status == 200
 
     from datetime import datetime, timezone
 
-    result = sensor_cache.get_humidity("shellyhtg3-test", datetime.now(timezone.utc))
+    # aiohttp test client uses 127.0.0.1 as remote
+    result = sensor_cache.get_humidity("127.0.0.1", datetime.now(timezone.utc))
     assert result == 65.2
 
 
-async def test_temperature_only_payload(webhook_client, sensor_cache):
+async def test_no_humidity_param(webhook_client, sensor_cache):
     client = await webhook_client
-    payload = {
-        "src": "shellyhtg3-test",
-        "method": "NotifyStatus",
-        "params": {
-            "ts": 1710000000.00,
-            "temperature:0": {"tC": 23.5},
-        },
-    }
-    resp = await client.post("/webhook/shelly", json=payload)
+    resp = await client.get("/webhook/shelly")
     assert resp.status == 200
 
     from datetime import datetime, timezone
 
-    # No humidity data, so cache should not have a reading
-    result = sensor_cache.get_humidity("shellyhtg3-test", datetime.now(timezone.utc))
+    result = sensor_cache.get_humidity("127.0.0.1", datetime.now(timezone.utc))
     assert result is None
-
-
-async def test_invalid_json_returns_400(webhook_client):
-    client = await webhook_client
-    resp = await client.post(
-        "/webhook/shelly",
-        data=b"not json",
-        headers={"Content-Type": "application/json"},
-    )
-    assert resp.status == 400
-
-
-async def test_missing_src_returns_400(webhook_client):
-    client = await webhook_client
-    payload = {"method": "NotifyStatus", "params": {}}
-    resp = await client.post("/webhook/shelly", json=payload)
-    assert resp.status == 400

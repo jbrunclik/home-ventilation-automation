@@ -27,7 +27,7 @@ class FanConfig:
     co2_accessories: list[str] = field(default_factory=list)
     humidity_accessories: list[str] = field(default_factory=list)
     switch_inputs: list[int] = field(default_factory=list)
-    humidity_sensor_ids: list[str] = field(default_factory=list)
+    humidity_sensor_ips: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -79,7 +79,7 @@ def load_config(path: Path) -> Config:
                 co2_accessories=fan_data.get("co2_accessories", []),
                 humidity_accessories=fan_data.get("humidity_accessories", []),
                 switch_inputs=fan_data.get("switch_inputs", []),
-                humidity_sensor_ids=fan_data.get("humidity_sensor_ids", []),
+                humidity_sensor_ips=fan_data.get("humidity_sensor_ips", []),
             )
         )
 

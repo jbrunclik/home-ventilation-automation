@@ -9,30 +9,16 @@ logger = logging.getLogger(__name__)
 
 async def _handle_shelly_webhook(request: web.Request) -> web.Response:
     sensor_cache: SensorCache = request.app["sensor_cache"]
+    src_ip = request.remote
 
-    try:
-        payload = await request.json()
-    except Exception:
-        return web.Response(status=400, text="Invalid JSON")
+    hum = request.query.get("hum")
 
-    src = payload.get("src")
-    if not src:
-        return web.Response(status=400, text="Missing 'src' field")
-
-    logger.debug("Shelly webhook payload from %s: %s", src, payload)
-
-    params = payload.get("params", {})
-    humidity_data = params.get("humidity:0")
-    temperature_data = params.get("temperature:0")
-
-    humidity = humidity_data.get("rh") if humidity_data else None
-    temperature = temperature_data.get("tC") if temperature_data else None
-
-    if humidity is not None:
-        sensor_cache.update(src, humidity, temperature)
-        logger.info("Webhook: %s humidity=%.1f%% temperature=%s", src, humidity, temperature)
+    if hum is not None:
+        humidity = float(hum)
+        sensor_cache.update(src_ip, humidity)
+        logger.info("Webhook: %s humidity=%.1f%%", src_ip, humidity)
     else:
-        logger.info("Webhook: %s notification without humidity data", src)
+        logger.info("Webhook: %s no humidity data (params: %s)", src_ip, dict(request.query))
 
     return web.Response(text="OK")
 
@@ -40,7 +26,7 @@ async def _handle_shelly_webhook(request: web.Request) -> web.Response:
 def create_webhook_app(sensor_cache: SensorCache) -> web.Application:
     app = web.Application()
     app["sensor_cache"] = sensor_cache
-    app.router.add_post("/webhook/shelly", _handle_shelly_webhook)
+    app.router.add_route("*", "/webhook/shelly", _handle_shelly_webhook)
     return app
 
 

@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SensorReading:
     humidity: float
-    temperature: float | None
     timestamp: datetime
 
 
@@ -21,10 +20,9 @@ class SensorCache:
         self._readings: dict[str, SensorReading] = {}
         self._load()
 
-    def update(self, device_id: str, humidity: float, temperature: float | None) -> None:
+    def update(self, device_id: str, humidity: float) -> None:
         self._readings[device_id] = SensorReading(
             humidity=humidity,
-            temperature=temperature,
             timestamp=datetime.now(timezone.utc),
         )
         self._save()
@@ -46,7 +44,6 @@ class SensorCache:
             for device_id, entry in data.items():
                 self._readings[device_id] = SensorReading(
                     humidity=entry["humidity"],
-                    temperature=entry.get("temperature"),
                     timestamp=datetime.fromisoformat(entry["timestamp"]),
                 )
             logger.info(
@@ -60,7 +57,6 @@ class SensorCache:
         for device_id, reading in self._readings.items():
             data[device_id] = {
                 "humidity": reading.humidity,
-                "temperature": reading.temperature,
                 "timestamp": reading.timestamp.isoformat(),
             }
         try:

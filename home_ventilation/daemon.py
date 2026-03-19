@@ -85,8 +85,8 @@ async def run(config: Config) -> None:
                         humidity_values: list[float | None] = []
                         for acc_name in fan_cfg.humidity_accessories:
                             humidity_values.append(await hb.get_humidity(acc_name))
-                        for sensor_id in fan_cfg.humidity_sensor_ids:
-                            humidity_values.append(sensor_cache.get_humidity(sensor_id, now))
+                        for sensor_ip in fan_cfg.humidity_sensor_ips:
+                            humidity_values.append(sensor_cache.get_humidity(sensor_ip, now))
                         cached_humidity[fan_cfg.name] = humidity_values
 
                     # Read switch inputs every cycle (fast)
