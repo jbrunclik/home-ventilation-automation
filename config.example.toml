@@ -25,6 +25,13 @@ humidity_accessories = ["Master Bathroom Humidity"]
 humidity_sensor_ips = ["10.0.0.50"]  # Shelly H&T Gen3 IPs (identified by source IP)
 switch_inputs = [0]
 
+# Optional: run fan on a periodic schedule (e.g. nighttime ventilation)
+[fans.master_bathroom.schedule]
+start_hour = 22       # schedule active from 22:00...
+end_hour = 7          # ...until 07:00
+run_minutes = 10      # run first 10 minutes of each hour
+speed = "low"         # "low" or "high"
+
 [fans.toilet]
 shelly_host = "192.168.1.121"
 co2_accessories = ["Kids Bedroom 1 CO2", "Kids Bedroom 2 CO2"]

@@ -21,6 +21,14 @@ class HomebridgeConfig:
 
 
 @dataclass(frozen=True)
+class ScheduleConfig:
+    start_hour: int = 22
+    end_hour: int = 7
+    run_minutes: int = 10
+    speed: str = "low"
+
+
+@dataclass(frozen=True)
 class FanConfig:
     name: str
     shelly_host: str = ""
@@ -28,6 +36,7 @@ class FanConfig:
     humidity_accessories: list[str] = field(default_factory=list)
     switch_inputs: list[int] = field(default_factory=list)
     humidity_sensor_ips: list[str] = field(default_factory=list)
+    schedule: ScheduleConfig | None = None
 
 
 @dataclass(frozen=True)
@@ -72,6 +81,7 @@ def load_config(path: Path) -> Config:
 
     fans = []
     for name, fan_data in fans_raw.items():
+        sched_raw = fan_data.get("schedule")
         fans.append(
             FanConfig(
                 name=name,
@@ -80,6 +90,7 @@ def load_config(path: Path) -> Config:
                 humidity_accessories=fan_data.get("humidity_accessories", []),
                 switch_inputs=fan_data.get("switch_inputs", []),
                 humidity_sensor_ips=fan_data.get("humidity_sensor_ips", []),
+                schedule=ScheduleConfig(**sched_raw) if sched_raw else None,
             )
         )
 

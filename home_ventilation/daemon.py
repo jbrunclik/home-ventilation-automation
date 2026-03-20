@@ -116,6 +116,7 @@ async def run(config: Config) -> None:
                         thresholds=config.thresholds,
                         override_minutes=config.manual_override_minutes,
                         now=now,
+                        schedule=fan_cfg.schedule,
                     )
 
                     # Log on change, debug otherwise

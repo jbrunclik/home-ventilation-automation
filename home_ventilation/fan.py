@@ -1,7 +1,21 @@
 from datetime import datetime, timedelta
 
-from home_ventilation.config import ThresholdsConfig
+from home_ventilation.config import ScheduleConfig, ThresholdsConfig
 from home_ventilation.models import FanSpeed, FanState
+
+
+def _is_schedule_active(schedule: ScheduleConfig, now: datetime) -> bool:
+    """Check if the current time falls within an active schedule window."""
+    hour = now.hour
+    minute = now.minute
+
+    # Check if hour is within start_hour..end_hour (may wrap past midnight)
+    if schedule.start_hour > schedule.end_hour:
+        in_range = hour >= schedule.start_hour or hour < schedule.end_hour
+    else:
+        in_range = schedule.start_hour <= hour < schedule.end_hour
+
+    return in_range and minute < schedule.run_minutes
 
 
 def decide_speed(
@@ -12,6 +26,7 @@ def decide_speed(
     thresholds: ThresholdsConfig,
     override_minutes: int,
     now: datetime,
+    schedule: ScheduleConfig | None = None,
 ) -> tuple[FanSpeed, FanState]:
     """Decide fan speed based on sensor readings and switch state.
 
@@ -19,6 +34,7 @@ def decide_speed(
     1. Manual switch press -> HIGH for override_minutes
     2. Humidity thresholds
     3. CO2 thresholds
+    4. Time-based schedule
     """
     override_until = current_state.override_until
 
@@ -80,6 +96,15 @@ def decide_speed(
                 override_until=override_until,
                 previous_switch_states=new_switch_states,
             )
+
+    # 4. Time-based schedule
+    if schedule and _is_schedule_active(schedule, now):
+        speed = FanSpeed(schedule.speed)
+        return speed, FanState(
+            current_speed=speed,
+            override_until=override_until,
+            previous_switch_states=new_switch_states,
+        )
 
     return FanSpeed.OFF, FanState(
         current_speed=FanSpeed.OFF,

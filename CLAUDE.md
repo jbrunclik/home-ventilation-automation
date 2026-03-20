@@ -5,19 +5,20 @@ Automated control of bathroom exhaust fans (Ruck EC motors) based on CO2 levels,
 ## Architecture
 
 - **Sensor data**: Homebridge Config UI X REST API (`/api/accessories`) — CO2 (Tuya via Smart Life) and humidity (Shelly H&T)
-- **Fan control**: Shelly 2PM Gen4 HTTP API (Gen2+ RPC: `/rpc/Switch.Set`, `/rpc/Input.GetStatus`)
+- **Fan control**: Shelly 2PM Gen4 HTTP API (Gen2+ RPC, cover mode: `/rpc/Cover.Open`, `/rpc/Cover.Close`, `/rpc/Cover.Stop`)
 - **Config**: `config.toml` (thresholds, IPs) + `.env` (Homebridge credentials)
 
-### Fan speed via Shelly 2PM relays
-- OFF: both relays off
-- LOW: relay 0 on, relay 1 off
-- HIGH: relay 0 off, relay 1 on
-- Never both on simultaneously
+### Fan speed via Shelly 2PM cover mode
+- OFF: `Cover.Stop` (both relays off)
+- LOW: `Cover.Open` (relay 0)
+- HIGH: `Cover.Close` (relay 1)
+- Cover mode prevents both relays from being on simultaneously (motor protection)
 
 ### Decision priority (highest → lowest)
 1. Manual switch press → HIGH for configurable cooldown
 2. Humidity: >70% → HIGH, 60–70% → LOW
 3. CO2: >1200 ppm → HIGH, 800–1200 ppm → LOW, <800 → OFF
+4. Time-based schedule (per-fan, optional) → configurable speed
 
 ## Commands
 
@@ -50,3 +51,4 @@ make restart   # systemctl restart
 - Pure decision logic in `fan.py` (easy to test, no I/O)
 - Ruff for linting/formatting, line-length 99
 - Tests focus on `fan.py` decision logic
+- When changing config options: update `config.example.toml`, `CLAUDE.md`, and decision priority list
