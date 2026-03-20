@@ -11,7 +11,7 @@ from home_ventilation.fan import decide_speed
 from home_ventilation.homebridge import HomebridgeClient
 from home_ventilation.models import FanSpeed, FanState
 from home_ventilation.sensor_cache import SensorCache
-from home_ventilation.shelly import get_switch_inputs, set_fan_speed
+from home_ventilation.shelly import configure_cover_timeouts, get_switch_inputs, set_fan_speed
 from home_ventilation.webhook import create_webhook_app, start_webhook_server
 
 logger = logging.getLogger(__name__)
@@ -51,6 +51,11 @@ async def run(config: Config) -> None:
     cached_co2: dict[str, list[int | None]] = {fan.name: [] for fan in config.fans}
     cached_humidity: dict[str, list[float | None]] = {fan.name: [] for fan in config.fans}
     last_sensor_poll = 0.0  # force immediate first sensor read
+
+    # Configure cover timeouts on startup
+    for fan_cfg in config.fans:
+        if fan_cfg.shelly_host:
+            await configure_cover_timeouts(shelly_client, fan_cfg.shelly_host)
 
     logger.info(
         "Starting ventilation daemon (sensors every %ds, switches every %ds, webhook port %d),"
@@ -113,7 +118,7 @@ async def run(config: Config) -> None:
                         now=now,
                     )
 
-                    # Apply if changed
+                    # Log on change, debug otherwise
                     if new_speed != state.current_speed:
                         logger.info(
                             "[%s] Speed change: %s -> %s (CO2=%s, humidity=%s)",
@@ -123,8 +128,6 @@ async def run(config: Config) -> None:
                             cached_co2[fan_cfg.name],
                             humidity_values,
                         )
-                        if fan_cfg.shelly_host:
-                            await set_fan_speed(shelly_client, fan_cfg.shelly_host, new_speed)
                     elif read_sensors:
                         logger.debug(
                             "[%s] Speed unchanged: %s (CO2=%s, humidity=%s)",
@@ -133,6 +136,10 @@ async def run(config: Config) -> None:
                             cached_co2[fan_cfg.name],
                             humidity_values,
                         )
+
+                    # Always re-issue to prevent cover mode auto-stop timeout
+                    if fan_cfg.shelly_host:
+                        await set_fan_speed(shelly_client, fan_cfg.shelly_host, new_speed)
 
                     fan_states[fan_cfg.name] = new_state
 
