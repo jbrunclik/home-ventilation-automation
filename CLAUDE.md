@@ -6,7 +6,17 @@ Automated control of bathroom exhaust fans (Ruck EC motors) based on CO2 levels,
 
 - **Sensor data**: Homebridge Config UI X REST API (`/api/accessories`) — CO2 (Tuya via Smart Life) and humidity (Shelly H&T)
 - **Fan control**: Shelly 2PM Gen4 HTTP API (Gen2+ RPC, cover mode: `/rpc/Cover.Open`, `/rpc/Cover.Close`, `/rpc/Cover.Stop`)
+- **Switch input**: Shelly 2PM webhook push (`/webhook/shelly?input_id=N&state=on|off`) — 4 actions per device (input × toggle_on/off, no variable substitution)
 - **Config**: `config.toml` (thresholds, IPs) + `.env` (Homebridge credentials)
+
+### Event-driven loop (three timing layers)
+| Layer | Interval | Purpose |
+|---|---|---|
+| Webhook (instant) | Push from Shelly | Switch input changes + humidity updates |
+| Sensor poll (30s) | `poll_interval_seconds` | CO2 + humidity from Homebridge |
+| Reconciliation (60s) | `reconciliation_interval_seconds` | Re-issue cover command to prevent 300s auto-stop |
+
+The main loop awaits an `asyncio.Event` with reconciliation timeout — webhooks and sensor polls set the event to wake it immediately.
 
 ### Fan speed via Shelly 2PM cover mode
 - OFF: `Cover.Stop` (both relays off)
@@ -41,8 +51,9 @@ make restart   # systemctl restart
 | `models.py` | `FanSpeed` enum, `FanState` dataclass |
 | `fan.py` | Pure decision logic (no I/O) |
 | `homebridge.py` | Homebridge REST API client (sensors) |
-| `shelly.py` | Shelly Gen2+ RPC client (relays + inputs) |
-| `daemon.py` | Async main loop, orchestration |
+| `shelly.py` | Shelly Gen2+ RPC client (relays + inputs + cover refresh) |
+| `webhook.py` | aiohttp webhook server (humidity + switch input from Shelly devices) |
+| `daemon.py` | Event-driven main loop, orchestration |
 | `__main__.py` | CLI entry point |
 
 ## Conventions

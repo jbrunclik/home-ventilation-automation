@@ -85,6 +85,28 @@ async def set_fan_speed(client: httpx.AsyncClient, host: str, speed: FanSpeed) -
     logger.debug("Set fan speed to %s on %s", speed.value, host)
 
 
+async def refresh_fan_speed(client: httpx.AsyncClient, host: str, speed: FanSpeed) -> None:
+    """Re-issue the current cover command to reset the auto-stop timer.
+
+    Unlike set_fan_speed, this skips the Stop+sleep sequence — just re-sends
+    the current command (Open/Close) as a single HTTP request. For OFF, issues
+    Cover.Stop directly.
+    """
+    rpc_method = {
+        FanSpeed.OFF: "Cover.Stop",
+        FanSpeed.LOW: "Cover.Open",
+        FanSpeed.HIGH: "Cover.Close",
+    }
+    method = rpc_method[speed]
+    try:
+        resp = await client.get(f"http://{host}/rpc/{method}", params={"id": 0}, timeout=5.0)
+        resp.raise_for_status()
+    except Exception:
+        logger.exception("Failed to refresh %s on %s", speed.value, host)
+        raise
+    logger.debug("Refreshed fan speed %s on %s", speed.value, host)
+
+
 async def configure_cover_timeouts(
     client: httpx.AsyncClient, host: str, maxtime: float = 300.0
 ) -> None:

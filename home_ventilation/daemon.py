@@ -11,7 +11,12 @@ from home_ventilation.fan import decide_speed
 from home_ventilation.homebridge import HomebridgeClient
 from home_ventilation.models import FanSpeed, FanState
 from home_ventilation.sensor_cache import SensorCache
-from home_ventilation.shelly import configure_cover_timeouts, get_switch_inputs, set_fan_speed
+from home_ventilation.shelly import (
+    configure_cover_timeouts,
+    get_switch_inputs,
+    refresh_fan_speed,
+    set_fan_speed,
+)
 from home_ventilation.webhook import create_webhook_app, start_webhook_server
 
 logger = logging.getLogger(__name__)
@@ -40,28 +45,42 @@ async def run(config: Config) -> None:
 
     shelly_client = httpx.AsyncClient(timeout=10.0)
 
+    # Shared state for webhook-driven switch inputs
+    switch_store: dict[str, dict[int, bool]] = {}
+    reevaluate = asyncio.Event()
+
     sensor_cache = SensorCache(config.sensor_cache_path, config.humidity_stale_minutes)
-    webhook_app = create_webhook_app(sensor_cache)
+    webhook_app = create_webhook_app(sensor_cache, switch_store, reevaluate)
     webhook_runner = await start_webhook_server(webhook_app, config.webhook_port)
 
     # Per-fan state
     fan_states: dict[str, FanState] = {fan.name: FanState() for fan in config.fans}
+
+    # Track last command time per fan for reconciliation
+    last_command_time: dict[str, float] = {fan.name: 0.0 for fan in config.fans}
 
     # Cached sensor readings per fan
     cached_co2: dict[str, list[int | None]] = {fan.name: [] for fan in config.fans}
     cached_humidity: dict[str, list[float | None]] = {fan.name: [] for fan in config.fans}
     last_sensor_poll = 0.0  # force immediate first sensor read
 
-    # Configure cover timeouts on startup
+    # Configure cover timeouts and seed initial switch state on startup
     for fan_cfg in config.fans:
         if fan_cfg.shelly_host:
             await configure_cover_timeouts(shelly_client, fan_cfg.shelly_host)
+            try:
+                initial_switches = await get_switch_inputs(shelly_client, fan_cfg.shelly_host)
+                switch_store[fan_cfg.shelly_host] = initial_switches
+                logger.info("[%s] Seeded switch state: %s", fan_cfg.name, initial_switches)
+            except Exception:
+                logger.exception("[%s] Failed to seed switch state", fan_cfg.name)
+                switch_store[fan_cfg.shelly_host] = {}
 
     logger.info(
-        "Starting ventilation daemon (sensors every %ds, switches every %ds, webhook port %d),"
-        " %d fan(s)",
+        "Starting ventilation daemon (sensors every %ds, reconciliation every %ds,"
+        " webhook port %d), %d fan(s)",
         config.poll_interval_seconds,
-        config.switch_poll_interval_seconds,
+        config.reconciliation_interval_seconds,
         config.webhook_port,
         len(config.fans),
     )
@@ -98,11 +117,11 @@ async def run(config: Config) -> None:
                     ]
                     humidity_values = cached_humidity[fan_cfg.name] + webhook_humidity
 
-                    # Read switch inputs every cycle (fast)
+                    # Read switch states from webhook store (no HTTP)
                     if fan_cfg.shelly_host:
-                        switch_states = await get_switch_inputs(shelly_client, fan_cfg.shelly_host)
+                        all_switches = switch_store.get(fan_cfg.shelly_host, {})
                         relevant_switches = {
-                            k: v for k, v in switch_states.items() if k in fan_cfg.switch_inputs
+                            k: v for k, v in all_switches.items() if k in fan_cfg.switch_inputs
                         }
                     else:
                         relevant_switches = {}
@@ -119,16 +138,29 @@ async def run(config: Config) -> None:
                         schedule=fan_cfg.schedule,
                     )
 
-                    # Log on change, debug otherwise
-                    if new_speed != state.current_speed:
-                        logger.info(
-                            "[%s] Speed change: %s -> %s (CO2=%s, humidity=%s)",
-                            fan_cfg.name,
-                            state.current_speed.value,
-                            new_speed.value,
-                            cached_co2[fan_cfg.name],
-                            humidity_values,
-                        )
+                    speed_changed = new_speed != state.current_speed
+                    elapsed = monotonic_now - last_command_time[fan_cfg.name]
+                    needs_reconciliation = elapsed >= config.reconciliation_interval_seconds
+
+                    if fan_cfg.shelly_host and (speed_changed or needs_reconciliation):
+                        if speed_changed:
+                            logger.info(
+                                "[%s] Speed change: %s -> %s (CO2=%s, humidity=%s)",
+                                fan_cfg.name,
+                                state.current_speed.value,
+                                new_speed.value,
+                                cached_co2[fan_cfg.name],
+                                humidity_values,
+                            )
+                            await set_fan_speed(shelly_client, fan_cfg.shelly_host, new_speed)
+                        else:
+                            logger.debug(
+                                "[%s] Reconciliation: re-issuing %s",
+                                fan_cfg.name,
+                                new_speed.value,
+                            )
+                            await refresh_fan_speed(shelly_client, fan_cfg.shelly_host, new_speed)
+                        last_command_time[fan_cfg.name] = monotonic_now
                     elif read_sensors:
                         logger.debug(
                             "[%s] Speed unchanged: %s (CO2=%s, humidity=%s)",
@@ -138,16 +170,23 @@ async def run(config: Config) -> None:
                             humidity_values,
                         )
 
-                    # Always re-issue to prevent cover mode auto-stop timeout
-                    if fan_cfg.shelly_host:
-                        await set_fan_speed(shelly_client, fan_cfg.shelly_host, new_speed)
-
                     fan_states[fan_cfg.name] = new_state
 
                 except Exception:
-                    logger.exception("[%s] Error in poll cycle", fan_cfg.name)
+                    logger.exception("[%s] Error in control cycle", fan_cfg.name)
 
-            await asyncio.sleep(config.switch_poll_interval_seconds)
+            # Wait for webhook event or reconciliation timeout
+            try:
+                await asyncio.wait_for(
+                    reevaluate.wait(), timeout=config.reconciliation_interval_seconds
+                )
+            except asyncio.TimeoutError:
+                pass  # reconciliation tick
+            reevaluate.clear()
+
+            # Also set reevaluate after sensor poll so the loop wakes up
+            if read_sensors:
+                reevaluate.set()
 
     except asyncio.CancelledError:
         pass

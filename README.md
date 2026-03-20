@@ -38,8 +38,9 @@ make deploy
 | Key | Description | Default |
 |---|---|---|
 | `poll_interval_seconds` | Sensor polling interval | 30 |
+| `reconciliation_interval_seconds` | Re-issue cover command to prevent 300s auto-stop | 60 |
 | `manual_override_minutes` | Duration of manual override | 15 |
-| `webhook_port` | HTTP port for Shelly H&T webhooks | 8090 |
+| `webhook_port` | HTTP port for Shelly webhooks (humidity + switch inputs) | 8090 |
 | `sensor_cache_path` | Path for cached webhook sensor data | `/dev/shm/home-ventilation-sensor-cache.json` |
 | `humidity_stale_minutes` | Ignore webhook readings older than this | 120 |
 | `thresholds.co2_low` | CO2 ppm threshold for LOW speed | 800 |
@@ -71,19 +72,20 @@ The Shelly 2PM Gen4 controls fan speed via two relays connected to the Ruck EC m
 | LOW | on | off |
 | HIGH | off | on |
 
-## Shelly H&T Gen3 Webhook Setup
+## Webhook Setup
 
-Shelly H&T Gen3 sensors are battery-powered and spend most of their time in deep sleep. They can't be polled — instead, they wake periodically, push sensor data via HTTP webhook, and go back to sleep.
+The daemon runs an HTTP server on `webhook_port` (default 8090) at `/webhook/shelly`. Both Shelly H&T humidity sensors and Shelly 2PM switch inputs push to the same endpoint, distinguished by query parameters.
 
-### How it works
+### Shelly H&T Gen3 (humidity)
 
-1. The daemon starts an HTTP server on `webhook_port` (default 8090)
-2. When a Shelly H&T wakes, it POSTs a `NotifyStatus` payload to `http://<daemon-ip>:8090/webhook/shelly`
-3. The daemon extracts humidity (and temperature) from the payload, caches it to disk
-4. On each poll cycle, cached webhook humidity is merged with Homebridge humidity for fan decisions
-5. If a sensor hasn't reported within `humidity_stale_minutes`, its reading is ignored (returns `None`)
+Battery-powered sensors that can't be polled — they wake periodically, push sensor data via webhook, and go back to sleep.
 
-### Registering the webhook on the sensor
+1. When a Shelly H&T wakes, it hits `http://<daemon-ip>:8090/webhook/shelly?hum=<value>`
+2. The daemon caches the humidity to disk
+3. On each cycle, cached webhook humidity is merged with Homebridge humidity for fan decisions
+4. If a sensor hasn't reported within `humidity_stale_minutes`, its reading is ignored (returns `None`)
+
+#### Registering the webhook on the sensor
 
 **Via Shelly web UI:** Go to the device's web interface → Actions → add a `humidity.change` action with URL:
 ```
@@ -98,7 +100,7 @@ curl -s "http://<shelly-ip>/rpc/Webhook.Create" \
   -d '{"cid":1,"enable":true,"event":"humidity.change","urls":["http://<daemon-ip>:8090/webhook/shelly?hum=$humidity"]}'
 ```
 
-### Lowering humidity report threshold
+#### Lowering humidity report threshold
 
 By default the H&T only reports when humidity changes by 5%. Lower it for faster response:
 
@@ -107,10 +109,33 @@ curl -s "http://<shelly-ip>/rpc/Humidity.SetConfig" \
   -d '{"id":0,"config":{"report_thr":1.0}}'
 ```
 
-### Testing the webhook
+#### Testing
 
 ```bash
 curl "http://localhost:8090/webhook/shelly?hum=65.0"
+```
+
+### Shelly 2PM Gen4 (switch inputs)
+
+Wall switch presses are pushed via webhook instead of polling, reducing HTTP traffic from ~4 req/s per device to near-zero. The Shelly 2PM doesn't support `$variable` substitution in action URLs, so you need 4 separate actions (one per input × toggle event) with hardcoded values.
+
+#### Registering the webhooks
+
+In the Shelly web UI → Actions, create these actions:
+
+| Event | URL |
+|---|---|
+| Input 0 `toggle_on` | `http://<daemon-ip>:8090/webhook/shelly?input_id=0&state=on` |
+| Input 0 `toggle_off` | `http://<daemon-ip>:8090/webhook/shelly?input_id=0&state=off` |
+| Input 1 `toggle_on` | `http://<daemon-ip>:8090/webhook/shelly?input_id=1&state=on` |
+| Input 1 `toggle_off` | `http://<daemon-ip>:8090/webhook/shelly?input_id=1&state=off` |
+
+Only configure the inputs listed in `switch_inputs` for that fan.
+
+#### Testing
+
+```bash
+curl "http://localhost:8090/webhook/shelly?input_id=0&state=on"
 ```
 
 ## Deployment

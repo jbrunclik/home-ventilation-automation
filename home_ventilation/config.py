@@ -42,7 +42,7 @@ class FanConfig:
 @dataclass(frozen=True)
 class Config:
     poll_interval_seconds: int
-    switch_poll_interval_seconds: int
+    reconciliation_interval_seconds: int
     manual_override_minutes: int
     thresholds: ThresholdsConfig
     homebridge: HomebridgeConfig
@@ -102,7 +102,7 @@ def load_config(path: Path) -> Config:
 
     return Config(
         poll_interval_seconds=raw.get("poll_interval_seconds", 30),
-        switch_poll_interval_seconds=raw.get("switch_poll_interval_seconds", 1),
+        reconciliation_interval_seconds=raw.get("reconciliation_interval_seconds", 60),
         manual_override_minutes=raw.get("manual_override_minutes", 15),
         thresholds=thresholds,
         homebridge=homebridge,
