@@ -138,6 +138,31 @@ Only configure the inputs listed in `switch_inputs` for that fan.
 curl "http://localhost:8090/webhook/shelly?input_id=0&state=on"
 ```
 
+## Standalone Shelly Script (no daemon needed)
+
+If you can't run the Python daemon, [`shelly-scripts/cover-switch-override.js`](shelly-scripts/cover-switch-override.js) runs directly on the Shelly 2PM Gen2+ device — no external server required.
+
+**Features (priority order):**
+1. **Switch override** — toggle → fan runs HIGH for `OVERRIDE_MINUTES` (default 10), then falls back to schedule or off
+2. **Time-based schedule** — run LOW for first `SCHEDULE_RUN_MINUTES` of each hour during a configurable window (hours + weekdays)
+3. Auto-refreshes cover command every 60s to work around 300s auto-stop
+4. Configures cover timeouts to 300s and locks physical inputs (`in_locked`) on startup
+
+**Setup:** Shelly web UI → Scripts → create new script, paste the contents, enable "Run on startup". Configure the variables at the top:
+
+| Variable | Default | Description |
+|---|---|---|
+| `OVERRIDE_MINUTES` | 10 | Duration of switch override (HIGH) |
+| `INPUT_ID` | 0 | Which input to listen to (0 or 1) |
+| `SCHEDULE_START_HOUR` | 8 | Schedule window start (inclusive) |
+| `SCHEDULE_END_HOUR` | 18 | Schedule window end (exclusive) |
+| `SCHEDULE_RUN_MINUTES` | 10 | Run first N minutes of each hour |
+| `SCHEDULE_DAYS` | `[1,2,3,4,5]` | Active days (0=Sun, 1=Mon, ..., 6=Sat) |
+
+Local time and DST are handled automatically via the device's configured timezone (Settings → Location).
+
+**Limitations:** no sensor-based control (CO2/humidity), no multi-fan coordination.
+
 ## Deployment
 
 The daemon runs as a user systemd service. `make deploy` installs the systemd unit (templated with the repo path) — config and `.env` stay in the repo directory.
