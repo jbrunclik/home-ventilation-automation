@@ -178,12 +178,44 @@ def test_humidity_low_overrides_co2_off():
 # --- Manual override ---
 
 
-def test_switch_press_triggers_override():
+def test_switch_on_returns_high():
     state = _state(prev_switches={0: False})
     speed, new_state = decide_speed(
         co2_values=[400],
         humidity_values=[40.0],
         switch_states={0: True},
+        current_state=state,
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.HIGH
+    assert new_state.override_until is None  # timer starts on release, not press
+
+
+def test_switch_stays_on_keeps_high():
+    """Switch still ON on subsequent cycles → stays HIGH regardless of sensors."""
+    state = _state(prev_switches={0: True})
+    speed, new_state = decide_speed(
+        co2_values=[400],
+        humidity_values=[40.0],
+        switch_states={0: True},
+        current_state=state,
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.HIGH
+    assert new_state.override_until is None
+
+
+def test_switch_release_starts_cooldown():
+    """Switch released → cooldown timer starts."""
+    state = _state(prev_switches={0: True})
+    speed, new_state = decide_speed(
+        co2_values=[400],
+        humidity_values=[40.0],
+        switch_states={0: False},
         current_state=state,
         thresholds=DEFAULT_THRESHOLDS,
         override_minutes=OVERRIDE_MINUTES,
@@ -297,8 +329,8 @@ def test_none_co2_with_valid_humidity():
     assert speed == FanSpeed.HIGH
 
 
-def test_no_previous_switch_state_no_edge():
-    """First poll cycle: no previous state, switch is on, should not trigger override."""
+def test_no_previous_switch_state_switch_on():
+    """First poll cycle: no previous state, switch is on → HIGH (level check)."""
     state = FanState()  # previous_switch_states is None
     speed, _ = decide_speed(
         co2_values=[400],
@@ -309,7 +341,7 @@ def test_no_previous_switch_state_no_edge():
         override_minutes=OVERRIDE_MINUTES,
         now=NOW,
     )
-    assert speed == FanSpeed.OFF
+    assert speed == FanSpeed.HIGH
 
 
 # --- Time-based schedule ---

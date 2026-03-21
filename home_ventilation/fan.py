@@ -31,27 +31,31 @@ def decide_speed(
     """Decide fan speed based on sensor readings and switch state.
 
     Priority (highest to lowest):
-    1. Manual switch press -> HIGH for override_minutes
+    1a. Any switch currently ON -> HIGH
+    1b. Switch released -> HIGH for override_minutes cooldown
     2. Humidity thresholds
     3. CO2 thresholds
     4. Time-based schedule
     """
     override_until = current_state.override_until
-
-    # Detect switch press (rising edge: was False, now True)
-    switch_pressed = False
-    prev = current_state.previous_switch_states
-    if prev is not None:
-        for input_id, is_on in switch_states.items():
-            if is_on and not prev.get(input_id, False):
-                switch_pressed = True
-                break
-
     new_switch_states = dict(switch_states)
 
-    # 1. Manual override
-    if switch_pressed:
-        override_until = now + timedelta(minutes=override_minutes)
+    # 1a. Any switch currently ON → HIGH (no timer needed)
+    any_switch_on = any(switch_states.values()) if switch_states else False
+    if any_switch_on:
+        return FanSpeed.HIGH, FanState(
+            current_speed=FanSpeed.HIGH,
+            override_until=None,
+            previous_switch_states=new_switch_states,
+        )
+
+    # 1b. Detect switch release (falling edge) → start cooldown timer
+    prev = current_state.previous_switch_states
+    if prev is not None:
+        for input_id, was_on in prev.items():
+            if was_on and not switch_states.get(input_id, False):
+                override_until = now + timedelta(minutes=override_minutes)
+                break
 
     if override_until and now < override_until:
         return FanSpeed.HIGH, FanState(

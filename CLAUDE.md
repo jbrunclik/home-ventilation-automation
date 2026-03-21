@@ -25,7 +25,7 @@ The main loop awaits an `asyncio.Event` with reconciliation timeout — webhooks
 - Cover mode prevents both relays from being on simultaneously (motor protection)
 
 ### Decision priority (highest → lowest)
-1. Manual switch press → HIGH for configurable cooldown
+1. Manual switch ON → HIGH while held; cooldown timer starts on release
 2. Humidity: >70% → HIGH, 60–70% → LOW
 3. CO2: >1200 ppm → HIGH, 800–1200 ppm → LOW, <800 → OFF
 4. Time-based schedule (per-fan, optional) → configurable speed
