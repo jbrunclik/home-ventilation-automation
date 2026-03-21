@@ -13,6 +13,8 @@ co2_low = 800
 co2_high = 1200
 humidity_low = 60.0
 humidity_high = 70.0
+co2_hysteresis = 50        # ppm dead band to prevent toggling near threshold
+humidity_hysteresis = 3.0  # % dead band to prevent toggling near threshold
 
 [homebridge]
 host = "192.168.1.1"

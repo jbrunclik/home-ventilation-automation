@@ -68,16 +68,24 @@ def decide_speed(
     override_until = None
 
     # 2. Humidity check (max of all sensors)
+    #    Hysteresis: lower thresholds when fan is already at/above the guarded speed
+    current_speed = current_state.current_speed
     valid_humidity = [h for h in humidity_values if h is not None]
     if valid_humidity:
         max_humidity = max(valid_humidity)
-        if max_humidity > thresholds.humidity_high:
+        eff_humidity_high = thresholds.humidity_high
+        eff_humidity_low = thresholds.humidity_low
+        if current_speed == FanSpeed.HIGH:
+            eff_humidity_high -= thresholds.humidity_hysteresis
+        if current_speed in (FanSpeed.LOW, FanSpeed.HIGH):
+            eff_humidity_low -= thresholds.humidity_hysteresis
+        if max_humidity > eff_humidity_high:
             return FanSpeed.HIGH, FanState(
                 current_speed=FanSpeed.HIGH,
                 override_until=override_until,
                 previous_switch_states=new_switch_states,
             )
-        if max_humidity >= thresholds.humidity_low:
+        if max_humidity >= eff_humidity_low:
             return FanSpeed.LOW, FanState(
                 current_speed=FanSpeed.LOW,
                 override_until=override_until,
@@ -85,16 +93,23 @@ def decide_speed(
             )
 
     # 3. CO2 check (max of all sensors)
+    #    Hysteresis: lower thresholds when fan is already at/above the guarded speed
     valid_co2 = [c for c in co2_values if c is not None]
     if valid_co2:
         max_co2 = max(valid_co2)
-        if max_co2 > thresholds.co2_high:
+        eff_co2_high = thresholds.co2_high
+        eff_co2_low = thresholds.co2_low
+        if current_speed == FanSpeed.HIGH:
+            eff_co2_high -= thresholds.co2_hysteresis
+        if current_speed in (FanSpeed.LOW, FanSpeed.HIGH):
+            eff_co2_low -= thresholds.co2_hysteresis
+        if max_co2 > eff_co2_high:
             return FanSpeed.HIGH, FanState(
                 current_speed=FanSpeed.HIGH,
                 override_until=override_until,
                 previous_switch_states=new_switch_states,
             )
-        if max_co2 >= thresholds.co2_low:
+        if max_co2 >= eff_co2_low:
             return FanSpeed.LOW, FanState(
                 current_speed=FanSpeed.LOW,
                 override_until=override_until,

@@ -10,6 +10,8 @@ class ThresholdsConfig:
     co2_high: int = 1200
     humidity_low: float = 60.0
     humidity_high: float = 70.0
+    co2_hysteresis: int = 50
+    humidity_hysteresis: float = 3.0
 
 
 @dataclass(frozen=True)

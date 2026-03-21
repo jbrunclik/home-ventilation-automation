@@ -451,3 +451,208 @@ def test_no_schedule_returns_off():
         schedule=None,
     )
     assert speed == FanSpeed.OFF
+
+
+# --- CO2 hysteresis ---
+
+
+def test_co2_hysteresis_holds_low_in_dead_band():
+    """CO2 at 770 (below 800 but above 800-50=750): stays LOW when already LOW."""
+    speed, _ = decide_speed(
+        co2_values=[770],
+        humidity_values=[40.0],
+        switch_states={0: False},
+        current_state=_state(speed=FanSpeed.LOW),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.LOW
+
+
+def test_co2_hysteresis_turns_off_below_dead_band():
+    """CO2 at 749 (below 800-50=750): turns OFF even when currently LOW."""
+    speed, _ = decide_speed(
+        co2_values=[749],
+        humidity_values=[40.0],
+        switch_states={0: False},
+        current_state=_state(speed=FanSpeed.LOW),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.OFF
+
+
+def test_co2_hysteresis_no_effect_when_off():
+    """CO2 at 770 when fan is OFF: no hysteresis, stays OFF (below 800)."""
+    speed, _ = decide_speed(
+        co2_values=[770],
+        humidity_values=[40.0],
+        switch_states={0: False},
+        current_state=_state(speed=FanSpeed.OFF),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.OFF
+
+
+def test_co2_hysteresis_holds_high_in_dead_band():
+    """CO2 at 1180 (below 1200 but above 1200-50=1150): stays HIGH when already HIGH."""
+    speed, _ = decide_speed(
+        co2_values=[1180],
+        humidity_values=[40.0],
+        switch_states={0: False},
+        current_state=_state(speed=FanSpeed.HIGH),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.HIGH
+
+
+def test_co2_hysteresis_drops_to_low_below_high_dead_band():
+    """CO2 at 1149 (below 1200-50=1150): drops to LOW even when currently HIGH."""
+    speed, _ = decide_speed(
+        co2_values=[1149],
+        humidity_values=[40.0],
+        switch_states={0: False},
+        current_state=_state(speed=FanSpeed.HIGH),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.LOW
+
+
+def test_co2_hysteresis_no_effect_on_upward_transition():
+    """CO2 at 800 when fan is OFF: triggers LOW (upward uses normal threshold)."""
+    speed, _ = decide_speed(
+        co2_values=[800],
+        humidity_values=[40.0],
+        switch_states={0: False},
+        current_state=_state(speed=FanSpeed.OFF),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.LOW
+
+
+# --- Humidity hysteresis ---
+
+
+def test_humidity_hysteresis_holds_low_in_dead_band():
+    """Humidity at 58.0 (below 60 but above 60-3=57): stays LOW when already LOW."""
+    speed, _ = decide_speed(
+        co2_values=[400],
+        humidity_values=[58.0],
+        switch_states={0: False},
+        current_state=_state(speed=FanSpeed.LOW),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.LOW
+
+
+def test_humidity_hysteresis_turns_off_below_dead_band():
+    """Humidity at 56.9 (below 60-3=57): turns OFF even when currently LOW."""
+    speed, _ = decide_speed(
+        co2_values=[400],
+        humidity_values=[56.9],
+        switch_states={0: False},
+        current_state=_state(speed=FanSpeed.LOW),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.OFF
+
+
+def test_humidity_hysteresis_no_effect_when_off():
+    """Humidity at 58.0 when fan is OFF: no hysteresis, stays OFF (below 60)."""
+    speed, _ = decide_speed(
+        co2_values=[400],
+        humidity_values=[58.0],
+        switch_states={0: False},
+        current_state=_state(speed=FanSpeed.OFF),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.OFF
+
+
+def test_humidity_hysteresis_holds_high_in_dead_band():
+    """Humidity at 68.0 (below 70 but above 70-3=67): stays HIGH when already HIGH."""
+    speed, _ = decide_speed(
+        co2_values=[400],
+        humidity_values=[68.0],
+        switch_states={0: False},
+        current_state=_state(speed=FanSpeed.HIGH),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.HIGH
+
+
+def test_humidity_hysteresis_drops_to_low_below_high_dead_band():
+    """Humidity at 66.9 (below 70-3=67): drops to LOW even when currently HIGH."""
+    speed, _ = decide_speed(
+        co2_values=[400],
+        humidity_values=[66.9],
+        switch_states={0: False},
+        current_state=_state(speed=FanSpeed.HIGH),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.LOW
+
+
+def test_humidity_hysteresis_no_effect_on_upward_transition():
+    """Humidity at 60.0 when fan is OFF: triggers LOW (upward uses normal threshold)."""
+    speed, _ = decide_speed(
+        co2_values=[400],
+        humidity_values=[60.0],
+        switch_states={0: False},
+        current_state=_state(speed=FanSpeed.OFF),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.LOW
+
+
+# --- Cross-sensor hysteresis ---
+
+
+def test_cross_sensor_high_co2_humidity_in_dead_band():
+    """Fan HIGH from CO2, humidity at 58 (in dead band 57-60): humidity holds LOW."""
+    speed, _ = decide_speed(
+        co2_values=[400],
+        humidity_values=[58.0],
+        switch_states={0: False},
+        current_state=_state(speed=FanSpeed.HIGH),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.LOW
+
+
+def test_co2_hysteresis_exact_boundary():
+    """CO2 at exactly 750 (=800-50): stays LOW when already LOW (>= effective threshold)."""
+    speed, _ = decide_speed(
+        co2_values=[750],
+        humidity_values=[40.0],
+        switch_states={0: False},
+        current_state=_state(speed=FanSpeed.LOW),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=NOW,
+    )
+    assert speed == FanSpeed.LOW

@@ -30,6 +30,8 @@ The main loop awaits an `asyncio.Event` with reconciliation timeout — webhooks
 3. CO2: >1200 ppm → HIGH, 800–1200 ppm → LOW, <800 → OFF
 4. Time-based schedule (per-fan, optional) → configurable speed
 
+Hysteresis: thresholds 2–3 have a dead band (`co2_hysteresis`, `humidity_hysteresis`) to prevent toggling when a sensor hovers near a boundary. The "turn on" threshold is unchanged; the "turn off" threshold is lowered by the hysteresis margin when the fan is already at/above the guarded speed (e.g. OFF→LOW at 800 ppm, LOW→OFF at 750 ppm with `co2_hysteresis=50`).
+
 ## Commands
 
 ```bash

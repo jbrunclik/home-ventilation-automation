@@ -47,6 +47,8 @@ make deploy
 | `thresholds.co2_high` | CO2 ppm threshold for HIGH speed | 1200 |
 | `thresholds.humidity_low` | Humidity % threshold for LOW speed | 60.0 |
 | `thresholds.humidity_high` | Humidity % threshold for HIGH speed | 70.0 |
+| `thresholds.co2_hysteresis` | CO2 ppm dead band to prevent toggling near threshold | 50 |
+| `thresholds.humidity_hysteresis` | Humidity % dead band to prevent toggling near threshold | 3.0 |
 
 Each fan section (`[fans.<name>]`) specifies:
 - `shelly_host` — IP of the Shelly 2PM Gen4
