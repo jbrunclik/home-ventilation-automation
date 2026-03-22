@@ -12,7 +12,7 @@ from home_ventilation.homebridge import HomebridgeClient
 from home_ventilation.models import FanSpeed, FanState
 from home_ventilation.sensor_cache import SensorCache
 from home_ventilation.shelly import (
-    configure_cover_timeouts,
+    configure_shelly_device,
     get_switch_inputs,
     refresh_fan_speed,
     set_fan_speed,
@@ -67,7 +67,13 @@ async def run(config: Config) -> None:
     # Configure cover timeouts and seed initial switch state on startup
     for fan_cfg in config.fans:
         if fan_cfg.shelly_host:
-            await configure_cover_timeouts(shelly_client, fan_cfg.shelly_host)
+            await configure_shelly_device(
+                shelly_client,
+                fan_cfg.shelly_host,
+                fan_cfg.switch_inputs,
+                config.webhook_host,
+                config.webhook_port,
+            )
             try:
                 initial_switches = await get_switch_inputs(shelly_client, fan_cfg.shelly_host)
                 switch_store[fan_cfg.shelly_host] = initial_switches

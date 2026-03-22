@@ -3,7 +3,8 @@ reconciliation_interval_seconds = 60  # re-issue cover command to prevent 300s a
 manual_override_minutes = 15
 
 # Webhook server for Shelly devices (humidity + switch inputs via /webhook/shelly)
-# See README.md for webhook setup instructions
+# webhook_host is the daemon's IP that Shelly devices push to (defaults to homebridge.host)
+# webhook_host = "192.168.1.1"
 webhook_port = 8090
 # sensor_cache_path = "/dev/shm/home-ventilation-sensor-cache.json"  # default: ramdisk
 humidity_stale_minutes = 120  # ignore readings older than this

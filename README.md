@@ -40,6 +40,7 @@ make deploy
 | `poll_interval_seconds` | Sensor polling interval | 30 |
 | `reconciliation_interval_seconds` | Re-issue cover command to prevent 300s auto-stop | 60 |
 | `manual_override_minutes` | Duration of manual override | 15 |
+| `webhook_host` | Daemon IP for Shelly webhook URLs (defaults to `homebridge.host`) | — |
 | `webhook_port` | HTTP port for Shelly webhooks (humidity + switch inputs) | 8090 |
 | `sensor_cache_path` | Path for cached webhook sensor data | `/dev/shm/home-ventilation-sensor-cache.json` |
 | `humidity_stale_minutes` | Ignore webhook readings older than this | 120 |

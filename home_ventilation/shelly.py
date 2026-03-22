@@ -107,36 +107,139 @@ async def refresh_fan_speed(client: httpx.AsyncClient, host: str, speed: FanSpee
     logger.debug("Refreshed fan speed %s on %s", speed.value, host)
 
 
-async def configure_cover_timeouts(
-    client: httpx.AsyncClient, host: str, maxtime: float = 300.0
+async def configure_shelly_device(
+    client: httpx.AsyncClient,
+    host: str,
+    switch_inputs: list[int],
+    webhook_host: str,
+    webhook_port: int,
 ) -> None:
-    """Configure cover for script-only control on daemon start.
+    """Configure a Shelly 2PM on daemon start: cover, inputs, and webhooks.
 
-    Sets max open/close times to 300s (the daemon re-issues commands every
-    cycle, so this is a safety net) and detaches inputs so only the daemon
-    controls the cover.  in_locked is set in a separate call because the
-    Shelly firmware ignores it when sent together with in_mode.
+    Best-effort — logs and continues on failure so one unreachable device
+    doesn't block the rest.
     """
     try:
-        resp = await client.post(
-            f"http://{host}/rpc/Cover.SetConfig",
-            json={
-                "id": 0,
-                "config": {
-                    "maxtime_open": maxtime,
-                    "maxtime_close": maxtime,
-                    "in_mode": "detached",
-                },
-            },
-            timeout=5.0,
-        )
-        resp.raise_for_status()
-        resp = await client.post(
-            f"http://{host}/rpc/Cover.SetConfig",
-            json={"id": 0, "config": {"in_locked": True}},
-            timeout=5.0,
-        )
-        resp.raise_for_status()
-        logger.info("Configured cover (detached + locked) on %s", host)
+        await _configure_cover(client, host)
+        await _configure_inputs(client, host)
+        await _configure_webhooks(client, host, switch_inputs, webhook_host, webhook_port)
     except Exception:
-        logger.exception("Failed to configure cover timeouts on %s", host)
+        logger.exception("Failed to configure Shelly device %s", host)
+
+
+async def _configure_cover(client: httpx.AsyncClient, host: str, maxtime: float = 300.0) -> None:
+    """Set cover to detached + locked with max timeouts.
+
+    in_locked is set in a separate call — firmware ignores it when sent
+    together with in_mode (see CLAUDE.md).
+    """
+    resp = await client.post(
+        f"http://{host}/rpc/Cover.SetConfig",
+        json={
+            "id": 0,
+            "config": {
+                "maxtime_open": maxtime,
+                "maxtime_close": maxtime,
+                "in_mode": "detached",
+            },
+        },
+        timeout=5.0,
+    )
+    resp.raise_for_status()
+    resp = await client.post(
+        f"http://{host}/rpc/Cover.SetConfig",
+        json={"id": 0, "config": {"in_locked": True}},
+        timeout=5.0,
+    )
+    resp.raise_for_status()
+    logger.info("Configured cover (detached + locked) on %s", host)
+
+
+async def _configure_inputs(client: httpx.AsyncClient, host: str) -> None:
+    """Ensure both inputs are type 'switch' (required for toggle events)."""
+    for input_id in (0, 1):
+        resp = await client.get(
+            f"http://{host}/rpc/Input.GetConfig",
+            params={"id": input_id},
+            timeout=5.0,
+        )
+        resp.raise_for_status()
+        if resp.json().get("type") != "switch":
+            await client.post(
+                f"http://{host}/rpc/Input.SetConfig",
+                json={"id": input_id, "config": {"type": "switch"}},
+                timeout=5.0,
+            )
+            logger.info("Set input:%d to switch type on %s", input_id, host)
+
+
+async def _configure_webhooks(
+    client: httpx.AsyncClient,
+    host: str,
+    switch_inputs: list[int],
+    webhook_host: str,
+    webhook_port: int,
+) -> None:
+    """Reconcile webhooks: create missing, fix wrong URLs, delete stale."""
+    base_url = f"http://{webhook_host}:{webhook_port}/webhook/shelly"
+
+    # Build desired webhook set
+    desired: dict[tuple[int, str], dict] = {}
+    for input_id in switch_inputs:
+        for state, event in [("on", "input.toggle_on"), ("off", "input.toggle_off")]:
+            desired[(input_id, event)] = {
+                "cid": input_id,
+                "event": event,
+                "url": f"{base_url}?input_id={input_id}&state={state}",
+                "name": f"Input ({input_id}) {'On' if state == 'on' else 'Off'}",
+            }
+
+    # Fetch current webhooks
+    resp = await client.get(f"http://{host}/rpc/Webhook.List", timeout=5.0)
+    resp.raise_for_status()
+    current_hooks = resp.json().get("hooks", [])
+    current: dict[tuple[int, str], dict] = {(h["cid"], h["event"]): h for h in current_hooks}
+
+    changes = 0
+
+    # Create missing
+    for key, d in desired.items():
+        if key not in current:
+            await client.post(
+                f"http://{host}/rpc/Webhook.Create",
+                json={
+                    "cid": d["cid"],
+                    "enable": True,
+                    "event": d["event"],
+                    "urls": [d["url"]],
+                    "name": d["name"],
+                },
+                timeout=5.0,
+            )
+            logger.info("Created webhook %s cid=%d on %s", d["event"], d["cid"], host)
+            changes += 1
+
+    # Fix wrong URLs
+    for key, d in desired.items():
+        if key in current and current[key]["urls"] != [d["url"]]:
+            await client.post(
+                f"http://{host}/rpc/Webhook.Update",
+                json={"id": current[key]["id"], "urls": [d["url"]]},
+                timeout=5.0,
+            )
+            logger.info("Updated webhook %s cid=%d on %s", d["event"], d["cid"], host)
+            changes += 1
+
+    # Delete stale
+    for key, c in current.items():
+        if key not in desired:
+            await client.post(
+                f"http://{host}/rpc/Webhook.Delete",
+                json={"id": c["id"]},
+                timeout=5.0,
+            )
+            logger.info("Deleted stale webhook %s cid=%d on %s", c["event"], c["cid"], host)
+            changes += 1
+
+    if changes == 0:
+        logger.info("Webhooks already configured on %s", host)

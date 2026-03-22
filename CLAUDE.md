@@ -22,7 +22,7 @@ The main loop awaits an `asyncio.Event` with reconciliation timeout — webhooks
 - OFF: `Cover.Stop` (both relays off)
 - LOW: `Cover.Open` (relay 0)
 - HIGH: `Cover.Close` (relay 1)
-- Cover mode prevents both relays from being on simultaneously (motor protection)
+- **CRITICAL: Shelly MUST stay in cover mode — NEVER switch to relay/switch mode.** Cover mode enforces mutual exclusion (only one relay on at a time). If both relays energize simultaneously, both motor windings activate and the motor burns out.
 
 ### Decision priority (highest → lowest)
 1. Manual switch ON → HIGH while held; cooldown timer starts on release

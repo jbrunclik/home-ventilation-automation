@@ -49,6 +49,7 @@ class Config:
     thresholds: ThresholdsConfig
     homebridge: HomebridgeConfig
     fans: list[FanConfig]
+    webhook_host: str = ""
     webhook_port: int = 8090
     sensor_cache_path: str = "/dev/shm/home-ventilation-sensor-cache.json"
     humidity_stale_minutes: int = 120
@@ -102,6 +103,9 @@ def load_config(path: Path) -> Config:
     if not cache_path.is_absolute():
         cache_path = path.parent / cache_path
 
+    # webhook_host: explicit config or fall back to homebridge host
+    webhook_host = raw.get("webhook_host") or hb_raw["host"]
+
     return Config(
         poll_interval_seconds=raw.get("poll_interval_seconds", 30),
         reconciliation_interval_seconds=raw.get("reconciliation_interval_seconds", 60),
@@ -109,6 +113,7 @@ def load_config(path: Path) -> Config:
         thresholds=thresholds,
         homebridge=homebridge,
         fans=fans,
+        webhook_host=webhook_host,
         webhook_port=raw.get("webhook_port", 8090),
         sensor_cache_path=str(cache_path),
         humidity_stale_minutes=raw.get("humidity_stale_minutes", 120),
