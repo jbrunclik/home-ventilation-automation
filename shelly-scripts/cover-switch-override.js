@@ -45,10 +45,12 @@ let overrideTimer = null;
 let refreshTimer = null;
 
 // Detach inputs so only this script controls the cover.
+// in_locked is set separately — firmware ignores it when sent with in_mode.
 Shelly.call("Cover.SetConfig", {
   id: 0,
   config: { maxtime_open: 300, maxtime_close: 300, in_mode: "detached" },
 });
+Shelly.call("Cover.SetConfig", { id: 0, config: { in_locked: true } });
 
 // ---------------------------------------------------------------------------
 // Decision logic (pure — no I/O, no side effects)

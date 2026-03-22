@@ -110,21 +110,33 @@ async def refresh_fan_speed(client: httpx.AsyncClient, host: str, speed: FanSpee
 async def configure_cover_timeouts(
     client: httpx.AsyncClient, host: str, maxtime: float = 300.0
 ) -> None:
-    """Set cover max open/close times to the maximum (300s).
+    """Configure cover for script-only control on daemon start.
 
-    Called on daemon start to ensure the fan doesn't auto-stop too quickly.
-    The daemon re-issues commands every cycle, so this is a safety net.
+    Sets max open/close times to 300s (the daemon re-issues commands every
+    cycle, so this is a safety net) and detaches inputs so only the daemon
+    controls the cover.  in_locked is set in a separate call because the
+    Shelly firmware ignores it when sent together with in_mode.
     """
     try:
         resp = await client.post(
             f"http://{host}/rpc/Cover.SetConfig",
             json={
                 "id": 0,
-                "config": {"maxtime_open": maxtime, "maxtime_close": maxtime},
+                "config": {
+                    "maxtime_open": maxtime,
+                    "maxtime_close": maxtime,
+                    "in_mode": "detached",
+                },
             },
             timeout=5.0,
         )
         resp.raise_for_status()
-        logger.info("Configured cover timeouts to %.0fs on %s", maxtime, host)
+        resp = await client.post(
+            f"http://{host}/rpc/Cover.SetConfig",
+            json={"id": 0, "config": {"in_locked": True}},
+            timeout=5.0,
+        )
+        resp.raise_for_status()
+        logger.info("Configured cover (detached + locked) on %s", host)
     except Exception:
         logger.exception("Failed to configure cover timeouts on %s", host)

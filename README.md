@@ -142,20 +142,26 @@ curl "http://localhost:8090/webhook/shelly?input_id=0&state=on"
 
 ## Standalone Shelly Script (no daemon needed)
 
-If you can't run the Python daemon, [`shelly-scripts/cover-switch-override.js`](shelly-scripts/cover-switch-override.js) runs directly on the Shelly 2PM Gen2+ device — no external server required.
+If you can't run the Python daemon, [`shelly-scripts/cover-switch-override.js`](shelly-scripts/cover-switch-override.js) runs directly on the Shelly 2PM Gen2+ device — no external server required. Mirrors the Python daemon's architecture: cached state → pure decision logic (`desiredSpeed()`) → idempotent actuation (`applySpeed()`), making it easy to add new inputs like CO2 or humidity.
 
 **Features (priority order):**
-1. **Switch override** — toggle → fan runs HIGH for `OVERRIDE_MINUTES` (default 10), then falls back to schedule or off
+1. **Switch override** — toggle → fan runs HIGH for `OVERRIDE_MINUTES` (default 10), then seamlessly transitions to schedule or off
 2. **Time-based schedule** — run LOW for first `SCHEDULE_RUN_MINUTES` of each hour during a configurable window (hours + weekdays)
 3. Auto-refreshes cover command every 60s to work around 300s auto-stop
-4. Configures cover timeouts to 300s and locks physical inputs (`in_locked`) on startup
+4. Detaches physical inputs on startup (`in_mode: "detached"` + `in_locked: true`) so only the script controls the cover
 
-**Setup:** Shelly web UI → Scripts → create new script, paste the contents, enable "Run on startup". Configure the variables at the top:
+**Setup:**
+1. Set wall switch inputs to type **"switch"** (not "button") — required for `"toggle"` events:
+   ```bash
+   curl "http://<shelly-ip>/rpc/Input.SetConfig" -d '{"id":0,"config":{"type":"switch"}}'
+   ```
+2. Shelly web UI → Scripts → create new script, paste the contents, enable "Run on startup"
+3. Configure the variables at the top:
 
 | Variable | Default | Description |
 |---|---|---|
 | `OVERRIDE_MINUTES` | 10 | Duration of switch override (HIGH) |
-| `INPUT_ID` | 0 | Which input to listen to (0 or 1) |
+| `INPUT_ID` | 0 | Which input triggers the override (0 or 1) |
 | `SCHEDULE_START_HOUR` | 8 | Schedule window start (inclusive) |
 | `SCHEDULE_END_HOUR` | 18 | Schedule window end (exclusive) |
 | `SCHEDULE_RUN_MINUTES` | 10 | Run first N minutes of each hour |
@@ -163,7 +169,7 @@ If you can't run the Python daemon, [`shelly-scripts/cover-switch-override.js`](
 
 Local time and DST are handled automatically via the device's configured timezone (Settings → Location).
 
-**Limitations:** no sensor-based control (CO2/humidity), no multi-fan coordination.
+**Limitations:** no sensor-based control (CO2/humidity) yet — architecture is ready, just needs pollers and thresholds in `desiredSpeed()`.
 
 ## Deployment
 

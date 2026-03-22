@@ -57,6 +57,7 @@ make restart   # systemctl restart
 | `webhook.py` | aiohttp webhook server (humidity + switch input from Shelly devices) |
 | `daemon.py` | Event-driven main loop, orchestration |
 | `__main__.py` | CLI entry point |
+| `shelly-scripts/cover-switch-override.js` | Standalone Shelly script — same decision logic, runs on-device |
 
 ## Conventions
 
@@ -65,3 +66,5 @@ make restart   # systemctl restart
 - Ruff for linting/formatting, line-length 99
 - Tests focus on `fan.py` decision logic
 - When changing config options: update `config.example.toml`, `CLAUDE.md`, and decision priority list
+- Shelly cover input isolation: use `in_mode: "detached"` + `in_locked: true` in **separate** `Cover.SetConfig` calls (firmware ignores `in_locked` when sent with `in_mode`)
+- Wall toggle switches require Shelly input type `"switch"` (not `"button"`) to generate `"toggle"` events
