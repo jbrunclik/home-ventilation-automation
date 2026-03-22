@@ -53,7 +53,7 @@ make restart   # systemctl restart
 | `models.py` | `FanSpeed` enum, `FanState` dataclass |
 | `fan.py` | Pure decision logic (no I/O) |
 | `homebridge.py` | Homebridge REST API client (sensors) |
-| `shelly.py` | Shelly Gen2+ RPC client (relays + inputs + cover refresh) |
+| `shelly.py` | Shelly Gen2+ RPC client (relays + inputs + cover refresh + device setup) |
 | `webhook.py` | aiohttp webhook server (humidity + switch input from Shelly devices) |
 | `daemon.py` | Event-driven main loop, orchestration |
 | `__main__.py` | CLI entry point |
@@ -68,3 +68,4 @@ make restart   # systemctl restart
 - When changing config options: update `config.example.toml`, `CLAUDE.md`, and decision priority list
 - Shelly cover input isolation: use `in_mode: "detached"` + `in_locked: true` in **separate** `Cover.SetConfig` calls (firmware ignores `in_locked` when sent with `in_mode`)
 - Wall toggle switches require Shelly input type `"switch"` (not `"button"`) to generate `"toggle"` events
+- Shelly webhook URL template variables use `${token}` syntax (e.g. `${ev.rh}` for humidity). `$variable` shorthand (e.g. `$humidity`) does NOT work — it gets sent literally

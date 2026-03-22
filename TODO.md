@@ -1,6 +1,6 @@
 ## Shelly device management
 - [x] Configure cover, inputs, and webhooks on daemon startup (2PM devices)
-- [ ] Configure H&T humidity webhooks on startup (best-effort, may be asleep)
+- [x] Configure H&T humidity webhooks + report threshold on startup (best-effort, skips if asleep)
 - [ ] Claude skill for managing standalone Shelly script (upload, config)
 - [ ] Track deployed script version vs committed (hash comparison)
 

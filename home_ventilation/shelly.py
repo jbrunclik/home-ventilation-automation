@@ -243,3 +243,78 @@ async def _configure_webhooks(
 
     if changes == 0:
         logger.info("Webhooks already configured on %s", host)
+
+
+async def configure_humidity_sensor(
+    client: httpx.AsyncClient,
+    host: str,
+    webhook_host: str,
+    webhook_port: int,
+    report_thr: float = 1.0,
+) -> None:
+    """Configure a Shelly H&T sensor on daemon start (best-effort).
+
+    Battery-powered devices sleep most of the time. If unreachable, logs a
+    warning and returns — the device will be configured on next wakeup if
+    the user manually triggers config mode.
+    """
+    desired_url = f"http://{webhook_host}:{webhook_port}/webhook/shelly?hum=${{ev.rh}}"
+
+    try:
+        # Check reachability
+        resp = await client.get(f"http://{host}/rpc/Shelly.GetDeviceInfo", timeout=3.0)
+        resp.raise_for_status()
+    except Exception:
+        logger.warning("H&T sensor %s unreachable (likely asleep) — skipping", host)
+        return
+
+    try:
+        # Humidity report threshold
+        resp = await client.get(
+            f"http://{host}/rpc/Humidity.GetConfig", params={"id": 0}, timeout=5.0
+        )
+        resp.raise_for_status()
+        if resp.json().get("report_thr") != report_thr:
+            await client.post(
+                f"http://{host}/rpc/Humidity.SetConfig",
+                json={"id": 0, "config": {"report_thr": report_thr}},
+                timeout=5.0,
+            )
+            logger.info("Set humidity report_thr=%.1f on %s", report_thr, host)
+
+        # Webhook: humidity.change
+        resp = await client.get(f"http://{host}/rpc/Webhook.List", timeout=5.0)
+        resp.raise_for_status()
+        current_hooks = resp.json().get("hooks", [])
+
+        # Find existing humidity.change webhook
+        hum_hook = None
+        for h in current_hooks:
+            if h["event"] == "humidity.change":
+                hum_hook = h
+                break
+
+        if hum_hook is None:
+            await client.post(
+                f"http://{host}/rpc/Webhook.Create",
+                json={
+                    "cid": 0,
+                    "enable": True,
+                    "event": "humidity.change",
+                    "urls": [desired_url],
+                    "name": "Humidity Change",
+                },
+                timeout=5.0,
+            )
+            logger.info("Created humidity webhook on %s", host)
+        elif hum_hook["urls"] != [desired_url]:
+            await client.post(
+                f"http://{host}/rpc/Webhook.Update",
+                json={"id": hum_hook["id"], "urls": [desired_url]},
+                timeout=5.0,
+            )
+            logger.info("Updated humidity webhook URL on %s", host)
+        else:
+            logger.info("H&T sensor %s already configured", host)
+    except Exception:
+        logger.exception("Failed to configure H&T sensor %s", host)

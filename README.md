@@ -79,59 +79,46 @@ The Shelly 2PM Gen4 controls fan speed via two relays connected to the Ruck EC m
 
 The daemon runs an HTTP server on `webhook_port` (default 8090) at `/webhook/shelly`. Both Shelly H&T humidity sensors and Shelly 2PM switch inputs push to the same endpoint, distinguished by query parameters.
 
+**All webhook configuration is automated on daemon startup** — the daemon reconciles webhooks, input types, and cover config on each Shelly device based on `config.toml`. Manual setup is only needed if the automation can't reach a device (e.g. battery-powered H&T sensors that are asleep).
+
 ### Shelly H&T Gen3 (humidity)
 
 Battery-powered sensors that can't be polled — they wake periodically, push sensor data via webhook, and go back to sleep.
 
-1. When a Shelly H&T wakes, it hits `http://<daemon-ip>:8090/webhook/shelly?hum=<value>`
+1. When a Shelly H&T wakes, it hits `http://<daemon-ip>:<port>/webhook/shelly?hum=<value>`
 2. The daemon caches the humidity to disk
 3. On each cycle, cached webhook humidity is merged with Homebridge humidity for fan decisions
 4. If a sensor hasn't reported within `humidity_stale_minutes`, its reading is ignored (returns `None`)
 
-#### Registering the webhook on the sensor
+On startup, the daemon configures each H&T listed in `humidity_sensor_ips`: sets the `humidity.change` webhook URL and lowers the report threshold to 1.0%. If the sensor is asleep, it logs a warning and skips — put the sensor in config mode and restart the daemon to configure it.
 
-**Via Shelly web UI:** Go to the device's web interface → Actions → add a `humidity.change` action with URL:
+#### Manual setup (if needed)
+
+**Webhook** — via Shelly web UI → Actions → add a `humidity.change` action with URL:
 ```
-http://<daemon-ip>:8090/webhook/shelly?hum=$humidity
-```
-Use the `$humidity` template variable to pass the reading as a query parameter. The sensor is identified by its source IP, so no device ID is needed in the URL.
-
-**Via RPC API:**
-
-```bash
-curl -s "http://<shelly-ip>/rpc/Webhook.Create" \
-  -d '{"cid":1,"enable":true,"event":"humidity.change","urls":["http://<daemon-ip>:8090/webhook/shelly?hum=$humidity"]}'
+http://<daemon-ip>:<port>/webhook/shelly?hum=${ev.rh}
 ```
 
-#### Lowering humidity report threshold
-
-By default the H&T only reports when humidity changes by 5%. Lower it for faster response:
-
+**Report threshold** — lower from default 5% for faster response:
 ```bash
 curl -s "http://<shelly-ip>/rpc/Humidity.SetConfig" \
   -d '{"id":0,"config":{"report_thr":1.0}}'
 ```
 
-#### Testing
-
-```bash
-curl "http://localhost:8090/webhook/shelly?hum=65.0"
-```
-
 ### Shelly 2PM Gen4 (switch inputs)
 
-Wall switch presses are pushed via webhook instead of polling, reducing HTTP traffic from ~4 req/s per device to near-zero. The Shelly 2PM doesn't support `$variable` substitution in action URLs, so you need 4 separate actions (one per input × toggle event) with hardcoded values.
+Wall switch presses are pushed via webhook instead of polling. On startup, the daemon configures each 2PM: sets cover mode to detached + locked, ensures inputs are type "switch", and reconciles webhooks (creates missing, fixes wrong URLs, deletes stale) based on `switch_inputs` in `config.toml`.
 
-#### Registering the webhooks
+#### Manual setup (if needed)
 
 In the Shelly web UI → Actions, create these actions:
 
 | Event | URL |
 |---|---|
-| Input 0 `toggle_on` | `http://<daemon-ip>:8090/webhook/shelly?input_id=0&state=on` |
-| Input 0 `toggle_off` | `http://<daemon-ip>:8090/webhook/shelly?input_id=0&state=off` |
-| Input 1 `toggle_on` | `http://<daemon-ip>:8090/webhook/shelly?input_id=1&state=on` |
-| Input 1 `toggle_off` | `http://<daemon-ip>:8090/webhook/shelly?input_id=1&state=off` |
+| Input 0 `toggle_on` | `http://<daemon-ip>:<port>/webhook/shelly?input_id=0&state=on` |
+| Input 0 `toggle_off` | `http://<daemon-ip>:<port>/webhook/shelly?input_id=0&state=off` |
+| Input 1 `toggle_on` | `http://<daemon-ip>:<port>/webhook/shelly?input_id=1&state=on` |
+| Input 1 `toggle_off` | `http://<daemon-ip>:<port>/webhook/shelly?input_id=1&state=off` |
 
 Only configure the inputs listed in `switch_inputs` for that fan.
 

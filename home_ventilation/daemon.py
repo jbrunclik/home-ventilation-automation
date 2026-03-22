@@ -12,6 +12,7 @@ from home_ventilation.homebridge import HomebridgeClient
 from home_ventilation.models import FanSpeed, FanState
 from home_ventilation.sensor_cache import SensorCache
 from home_ventilation.shelly import (
+    configure_humidity_sensor,
     configure_shelly_device,
     get_switch_inputs,
     refresh_fan_speed,
@@ -81,6 +82,10 @@ async def run(config: Config) -> None:
             except Exception:
                 logger.exception("[%s] Failed to seed switch state", fan_cfg.name)
                 switch_store[fan_cfg.shelly_host] = {}
+        for sensor_ip in fan_cfg.humidity_sensor_ips:
+            await configure_humidity_sensor(
+                shelly_client, sensor_ip, config.webhook_host, config.webhook_port
+            )
 
     logger.info(
         "Starting ventilation daemon (sensors every %ds, reconciliation every %ds,"
