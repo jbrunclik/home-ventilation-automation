@@ -22,7 +22,6 @@ test: ## Run pytest
 	uv run pytest tests/ -v
 
 deploy: ## Deploy systemd unit (config stays in repo), enable service
-	chmod 600 .env
 	mkdir -p ~/.config/systemd/user
 	sed 's|@REPO_DIR@|$(CURDIR)|g' systemd/home-ventilation.service > ~/.config/systemd/user/home-ventilation.service
 	systemctl --user daemon-reload

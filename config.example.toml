@@ -1,10 +1,7 @@
 poll_interval_seconds = 30
 reconciliation_interval_seconds = 60  # re-issue cover command to prevent 300s auto-stop
 manual_override_minutes = 15
-
-# Webhook server for Shelly devices (humidity + switch inputs via /webhook/shelly)
-# webhook_host is the daemon's IP that Shelly devices push to (defaults to homebridge.host)
-# webhook_host = "192.168.1.1"
+webhook_host = "192.168.1.1"  # daemon IP for Shelly webhook URLs
 webhook_port = 8090
 # sensor_cache_path = "/dev/shm/home-ventilation-sensor-cache.json"  # default: ramdisk
 humidity_stale_minutes = 120  # ignore readings older than this
@@ -17,17 +14,22 @@ humidity_high = 70.0
 co2_hysteresis = 50        # ppm dead band to prevent toggling near threshold
 humidity_hysteresis = 3.0  # % dead band to prevent toggling near threshold
 
-[homebridge]
-host = "192.168.1.1"
-port = 8581
-# credentials in .env: HOMEBRIDGE_USERNAME, HOMEBRIDGE_PASSWORD
-
 [fans.master_bathroom]
 shelly_host = "192.168.1.120"
-co2_accessories = ["Master Bedroom CO2"]
-humidity_accessories = ["Master Bathroom Humidity"]
-humidity_sensor_ips = ["10.0.0.50"]  # Shelly H&T Gen3 IPs (identified by source IP)
+humidity_sensor_ips = ["192.168.1.150"]  # Shelly H&T Gen3 IPs (identified by source IP)
 switch_inputs = [0]
+
+# Tuya CO2 sensors (local API, no cloud dependency)
+# Get device_id + local_key from Tuya IoT Developer Platform (iot.tuya.com)
+[fans.master_bathroom.co2_sensors.master_bedroom]
+device_id = "abc123def456"
+ip = "192.168.1.160"
+local_key = "your_local_key"
+
+[fans.master_bathroom.co2_sensors.living_room]
+device_id = "def456ghi789"
+ip = "192.168.1.161"
+local_key = "your_local_key"
 
 # Optional: run fan on a periodic schedule (e.g. nighttime ventilation)
 [fans.master_bathroom.schedule]
@@ -38,6 +40,9 @@ speed = "low"         # "low" or "high"
 
 [fans.toilet]
 shelly_host = "192.168.1.121"
-co2_accessories = ["Kids Bedroom 1 CO2", "Kids Bedroom 2 CO2"]
-humidity_accessories = ["Kids Bathroom Humidity", "Toilet Humidity"]
 switch_inputs = [0, 1]
+
+[fans.toilet.co2_sensors.kids_bedroom_1]
+device_id = "ghi789jkl012"
+ip = "192.168.1.162"
+local_key = "your_local_key"

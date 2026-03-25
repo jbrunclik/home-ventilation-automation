@@ -5,9 +5,9 @@
 - [ ] Track deployed script version vs committed (hash comparison)
 
 ## Local Tuya sensor polling (bypass cloud)
-- [ ] Add tinytuya local polling for CO2 sensors (port 6668, AES-encrypted)
-- [ ] Replace Homebridge CO2 path with direct local poll → actual 30s fresh readings
-- [ ] Eliminates cloud dependency for CO2 (humidity already local via Shelly webhooks)
+- [x] Add tinytuya local polling for CO2 sensors (port 6668, AES-encrypted)
+- [x] Replace Homebridge CO2 path with direct local poll → actual 30s fresh readings
+- [x] Eliminates cloud dependency for CO2 (humidity already local via Shelly webhooks)
 
 ## Tighten nighttime CO2 thresholds
 - [ ] Lower CO2 targets for sleeping hours (22-07): OFF→LOW at 700, LOW→HIGH at 900

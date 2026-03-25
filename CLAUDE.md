@@ -4,16 +4,17 @@ Automated control of bathroom exhaust fans (Ruck EC motors) based on CO2 levels,
 
 ## Architecture
 
-- **Sensor data**: Homebridge Config UI X REST API (`/api/accessories`) — CO2 (Tuya via Smart Life) and humidity (Shelly H&T)
+- **CO2 data**: Tuya air quality sensors via local API (tinytuya, port 6668, protocol 3.5, AES-encrypted)
+- **Humidity data**: Shelly H&T Gen3 webhook push (battery-powered, no polling)
 - **Fan control**: Shelly 2PM Gen4 HTTP API (Gen2+ RPC, cover mode: `/rpc/Cover.Open`, `/rpc/Cover.Close`, `/rpc/Cover.Stop`)
 - **Switch input**: Shelly 2PM webhook push (`/webhook/shelly?input_id=N&state=on|off`) — 4 actions per device (input × toggle_on/off, no variable substitution)
-- **Config**: `config.toml` (thresholds, IPs) + `.env` (Homebridge credentials)
+- **Config**: `config.toml` (thresholds, IPs, Tuya device keys)
 
 ### Event-driven loop (three timing layers)
 | Layer | Interval | Purpose |
 |---|---|---|
 | Webhook (instant) | Push from Shelly | Switch input changes + humidity updates |
-| Sensor poll (30s) | `poll_interval_seconds` | CO2 + humidity from Homebridge |
+| Sensor poll (30s) | `poll_interval_seconds` | CO2 from Tuya sensors (local API) |
 | Reconciliation (60s) | `reconciliation_interval_seconds` | Re-issue cover command to prevent 300s auto-stop |
 
 The main loop awaits an `asyncio.Event` with reconciliation timeout — webhooks and sensor polls set the event to wake it immediately.
@@ -32,6 +33,13 @@ The main loop awaits an `asyncio.Event` with reconciliation timeout — webhooks
 
 Hysteresis: thresholds 2–3 have a dead band (`co2_hysteresis`, `humidity_hysteresis`) to prevent toggling when a sensor hovers near a boundary. The "turn on" threshold is unchanged; the "turn off" threshold is lowered by the hysteresis margin when the fan is already at/above the guarded speed (e.g. OFF→LOW at 800 ppm, LOW→OFF at 750 ppm with `co2_hysteresis=50`).
 
+### Tuya CO2 sensors
+- Category `co2bj` (AIR_DETECTOR), protocol 3.5
+- DP 2 = `co2_value` (ppm), DP 13 = `alarm_switch`, DP 17 = `alarm_bright`
+- tinytuya is synchronous — all calls wrapped with `asyncio.to_thread()`
+- On startup: alarm disabled (DP 13 → False, DP 17 → 0)
+- Local key retrieved once from Tuya IoT Developer Platform, stored in `config.toml`
+
 ## Commands
 
 ```bash
@@ -49,10 +57,10 @@ make restart   # systemctl restart
 
 | Module | Responsibility |
 |---|---|
-| `config.py` | TOML + env var loading → frozen dataclasses |
+| `config.py` | TOML loading → frozen dataclasses |
 | `models.py` | `FanSpeed` enum, `FanState` dataclass |
 | `fan.py` | Pure decision logic (no I/O) |
-| `homebridge.py` | Homebridge REST API client (sensors) |
+| `tuya.py` | Tuya local API client (CO2 polling + device config) |
 | `shelly.py` | Shelly Gen2+ RPC client (relays + inputs + cover refresh + device setup) |
 | `webhook.py` | aiohttp webhook server (humidity + switch input from Shelly devices) |
 | `daemon.py` | Event-driven main loop, orchestration |

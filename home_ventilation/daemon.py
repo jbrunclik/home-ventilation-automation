@@ -8,7 +8,6 @@ import httpx
 
 from home_ventilation.config import Config
 from home_ventilation.fan import decide_speed
-from home_ventilation.homebridge import HomebridgeClient
 from home_ventilation.models import FanSpeed, FanState
 from home_ventilation.sensor_cache import SensorCache
 from home_ventilation.shelly import (
@@ -18,6 +17,7 @@ from home_ventilation.shelly import (
     refresh_fan_speed,
     set_fan_speed,
 )
+from home_ventilation.tuya import configure_tuya_sensor, poll_co2_sensor
 from home_ventilation.webhook import create_webhook_app, start_webhook_server
 
 logger = logging.getLogger(__name__)
@@ -37,13 +37,6 @@ async def run(config: Config) -> None:
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, _request_shutdown)
 
-    hb = HomebridgeClient(
-        host=config.homebridge.host,
-        port=config.homebridge.port,
-        username=config.homebridge.username,
-        password=config.homebridge.password,
-    )
-
     shelly_client = httpx.AsyncClient(timeout=10.0)
 
     # Shared state for webhook-driven switch inputs
@@ -60,12 +53,11 @@ async def run(config: Config) -> None:
     # Track last command time per fan for reconciliation
     last_command_time: dict[str, float] = {fan.name: 0.0 for fan in config.fans}
 
-    # Cached sensor readings per fan
+    # Cached CO2 readings per fan
     cached_co2: dict[str, list[int | None]] = {fan.name: [] for fan in config.fans}
-    cached_humidity: dict[str, list[float | None]] = {fan.name: [] for fan in config.fans}
     last_sensor_poll = 0.0  # force immediate first sensor read
 
-    # Configure cover timeouts and seed initial switch state on startup
+    # Configure devices on startup
     for fan_cfg in config.fans:
         if fan_cfg.shelly_host:
             await configure_shelly_device(
@@ -86,6 +78,8 @@ async def run(config: Config) -> None:
             await configure_humidity_sensor(
                 shelly_client, sensor_ip, config.webhook_host, config.webhook_port
             )
+        for sensor in fan_cfg.co2_sensors:
+            await configure_tuya_sensor(sensor.device_id, sensor.ip, sensor.local_key)
 
     logger.info(
         "Starting ventilation daemon (sensors every %ds, reconciliation every %ds,"
@@ -110,23 +104,21 @@ async def run(config: Config) -> None:
                 try:
                     state = fan_states[fan_cfg.name]
 
-                    # Poll Homebridge on the slow cadence (network I/O)
+                    # Poll Tuya CO2 sensors on the slow cadence (network I/O)
                     if read_sensors:
                         co2_values: list[int | None] = []
-                        for acc_name in fan_cfg.co2_accessories:
-                            co2_values.append(await hb.get_co2(acc_name))
+                        for sensor in fan_cfg.co2_sensors:
+                            co2_values.append(
+                                await poll_co2_sensor(
+                                    sensor.device_id, sensor.ip, sensor.local_key
+                                )
+                            )
                         cached_co2[fan_cfg.name] = co2_values
 
-                        hb_humidity: list[float | None] = []
-                        for acc_name in fan_cfg.humidity_accessories:
-                            hb_humidity.append(await hb.get_humidity(acc_name))
-                        cached_humidity[fan_cfg.name] = hb_humidity
-
                     # Webhook humidity: read fresh every cycle (in-memory lookup)
-                    webhook_humidity = [
+                    humidity_values = [
                         sensor_cache.get_humidity(ip, now) for ip in fan_cfg.humidity_sensor_ips
                     ]
-                    humidity_values = cached_humidity[fan_cfg.name] + webhook_humidity
 
                     # Read switch states from webhook store (no HTTP)
                     if fan_cfg.shelly_host:
@@ -209,7 +201,6 @@ async def run(config: Config) -> None:
 
         await webhook_runner.cleanup()
         await shelly_client.aclose()
-        await hb.close()
 
         # Turn off all fans on shutdown (with timeout)
         try:

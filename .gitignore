@@ -13,9 +13,14 @@ venv/
 # uv
 uv.lock
 
-# Secrets and local config
-.env
+# Local config
 config.toml
+
+# tinytuya wizard output
+devices.json
+snapshot.json
+tinytuya.json
+tuya-raw.json
 
 # IDE
 .idea/

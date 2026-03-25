@@ -1,4 +1,3 @@
-import os
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -15,11 +14,10 @@ class ThresholdsConfig:
 
 
 @dataclass(frozen=True)
-class HomebridgeConfig:
-    host: str
-    port: int = 8581
-    username: str = ""
-    password: str = ""
+class TuyaDeviceConfig:
+    device_id: str
+    ip: str
+    local_key: str
 
 
 @dataclass(frozen=True)
@@ -34,8 +32,7 @@ class ScheduleConfig:
 class FanConfig:
     name: str
     shelly_host: str = ""
-    co2_accessories: list[str] = field(default_factory=list)
-    humidity_accessories: list[str] = field(default_factory=list)
+    co2_sensors: list[TuyaDeviceConfig] = field(default_factory=list)
     switch_inputs: list[int] = field(default_factory=list)
     humidity_sensor_ips: list[str] = field(default_factory=list)
     schedule: ScheduleConfig | None = None
@@ -47,9 +44,8 @@ class Config:
     reconciliation_interval_seconds: int
     manual_override_minutes: int
     thresholds: ThresholdsConfig
-    homebridge: HomebridgeConfig
     fans: list[FanConfig]
-    webhook_host: str = ""
+    webhook_host: str
     webhook_port: int = 8090
     sensor_cache_path: str = "/dev/shm/home-ventilation-sensor-cache.json"
     humidity_stale_minutes: int = 120
@@ -64,20 +60,6 @@ def load_config(path: Path) -> Config:
 
     thresholds = ThresholdsConfig(**raw.get("thresholds", {}))
 
-    hb_raw = raw.get("homebridge", {})
-    username = os.environ.get("HOMEBRIDGE_USERNAME", "")
-    password = os.environ.get("HOMEBRIDGE_PASSWORD", "")
-    if not username or not password:
-        raise ValueError(
-            "HOMEBRIDGE_USERNAME and HOMEBRIDGE_PASSWORD environment variables are required"
-        )
-    homebridge = HomebridgeConfig(
-        host=hb_raw["host"],
-        port=hb_raw.get("port", 8581),
-        username=username,
-        password=password,
-    )
-
     fans_raw = raw.get("fans", {})
     if not fans_raw:
         raise ValueError("At least one fan must be configured in [fans.*]")
@@ -85,12 +67,22 @@ def load_config(path: Path) -> Config:
     fans = []
     for name, fan_data in fans_raw.items():
         sched_raw = fan_data.get("schedule")
+
+        co2_sensors = []
+        for sensor_name, sensor_data in fan_data.get("co2_sensors", {}).items():
+            co2_sensors.append(
+                TuyaDeviceConfig(
+                    device_id=sensor_data["device_id"],
+                    ip=sensor_data["ip"],
+                    local_key=sensor_data["local_key"],
+                )
+            )
+
         fans.append(
             FanConfig(
                 name=name,
                 shelly_host=fan_data.get("shelly_host", ""),
-                co2_accessories=fan_data.get("co2_accessories", []),
-                humidity_accessories=fan_data.get("humidity_accessories", []),
+                co2_sensors=co2_sensors,
                 switch_inputs=fan_data.get("switch_inputs", []),
                 humidity_sensor_ips=fan_data.get("humidity_sensor_ips", []),
                 schedule=ScheduleConfig(**sched_raw) if sched_raw else None,
@@ -103,15 +95,15 @@ def load_config(path: Path) -> Config:
     if not cache_path.is_absolute():
         cache_path = path.parent / cache_path
 
-    # webhook_host: explicit config or fall back to homebridge host
-    webhook_host = raw.get("webhook_host") or hb_raw["host"]
+    webhook_host = raw.get("webhook_host")
+    if not webhook_host:
+        raise ValueError("webhook_host is required in config")
 
     return Config(
         poll_interval_seconds=raw.get("poll_interval_seconds", 30),
         reconciliation_interval_seconds=raw.get("reconciliation_interval_seconds", 60),
         manual_override_minutes=raw.get("manual_override_minutes", 15),
         thresholds=thresholds,
-        homebridge=homebridge,
         fans=fans,
         webhook_host=webhook_host,
         webhook_port=raw.get("webhook_port", 8090),

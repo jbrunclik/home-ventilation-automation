@@ -4,8 +4,6 @@ import logging
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
-
 from home_ventilation.config import load_config
 from home_ventilation.daemon import run
 
@@ -36,8 +34,6 @@ def main() -> None:
         help="Log level (default: INFO)",
     )
     args = parser.parse_args()
-
-    load_dotenv()
 
     level = getattr(logging, args.log_level)
     logging.basicConfig(

@@ -6,7 +6,6 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=@REPO_DIR@
-EnvironmentFile=@REPO_DIR@/.env
 ExecStart=@REPO_DIR@/.venv/bin/home-ventilation --config @REPO_DIR@/config.toml
 Restart=on-failure
 RestartSec=10

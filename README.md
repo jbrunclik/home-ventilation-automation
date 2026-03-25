@@ -6,8 +6,9 @@ Automated control of bathroom exhaust fans (Ruck EC motors) based on CO2 levels,
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/) package manager
-- Homebridge with Config UI X running (CO2 + humidity accessories)
+- Tuya CO2 sensors (local API — device ID + local key from [iot.tuya.com](https://iot.tuya.com))
 - Shelly 2PM Gen4 devices controlling the Ruck fans
+- Shelly H&T Gen3 sensors for humidity (optional)
 
 ## Quick Start
 
@@ -17,9 +18,7 @@ make dev
 
 # Copy and edit config
 cp config.example.toml config.toml
-cp .env.example .env
-# Edit config.toml with your device IPs and accessory names
-# Edit .env with your Homebridge credentials
+# Edit config.toml with your device IPs, Tuya keys, etc.
 
 # Run tests
 make test
@@ -40,7 +39,7 @@ make deploy
 | `poll_interval_seconds` | Sensor polling interval | 30 |
 | `reconciliation_interval_seconds` | Re-issue cover command to prevent 300s auto-stop | 60 |
 | `manual_override_minutes` | Duration of manual override | 15 |
-| `webhook_host` | Daemon IP for Shelly webhook URLs (defaults to `homebridge.host`) | — |
+| `webhook_host` | Daemon IP for Shelly webhook URLs (required) | — |
 | `webhook_port` | HTTP port for Shelly webhooks (humidity + switch inputs) | 8090 |
 | `sensor_cache_path` | Path for cached webhook sensor data | `/dev/shm/home-ventilation-sensor-cache.json` |
 | `humidity_stale_minutes` | Ignore webhook readings older than this | 120 |
@@ -53,17 +52,29 @@ make deploy
 
 Each fan section (`[fans.<name>]`) specifies:
 - `shelly_host` — IP of the Shelly 2PM Gen4
-- `co2_accessories` — Homebridge accessory names for CO2 sensors
-- `humidity_accessories` — Homebridge accessory names for humidity sensors
 - `humidity_sensor_ips` — Shelly H&T Gen3 IPs for webhook humidity (identified by source IP)
 - `switch_inputs` — Shelly input IDs for wall switches
 
-### `.env`
+CO2 sensors are configured as named sub-tables under each fan:
+```toml
+[fans.master_bathroom.co2_sensors.bedroom]
+device_id = "abc123def456"
+ip = "10.0.0.60"
+local_key = "your_local_key"
+```
 
-```
-HOMEBRIDGE_USERNAME=admin
-HOMEBRIDGE_PASSWORD=admin
-```
+Multiple sensors per fan are supported — the daemon uses the max reading across all sensors.
+
+### Tuya local keys
+
+To get device IDs and local keys for your Tuya CO2 sensors:
+
+1. Create an account at [iot.tuya.com](https://iot.tuya.com)
+2. Create a Cloud Project → link your Smart Life account
+3. Find each device → copy Device ID and Local Key
+4. Or run `uv run python -m tinytuya wizard` with your API credentials
+
+Local keys persist even after unlinking from the IoT platform (they only change if you re-pair the device in Smart Life).
 
 ## Fan Speed Mapping
 
@@ -87,7 +98,7 @@ Battery-powered sensors that can't be polled — they wake periodically, push se
 
 1. When a Shelly H&T wakes, it hits `http://<daemon-ip>:<port>/webhook/shelly?hum=<value>`
 2. The daemon caches the humidity to disk
-3. On each cycle, cached webhook humidity is merged with Homebridge humidity for fan decisions
+3. On each cycle, cached webhook humidity is used for fan decisions
 4. If a sensor hasn't reported within `humidity_stale_minutes`, its reading is ignored (returns `None`)
 
 On startup, the daemon configures each H&T listed in `humidity_sensor_ips`: sets the `humidity.change` webhook URL and lowers the report threshold to 1.0%. If the sensor is asleep, it logs a warning and skips — put the sensor in config mode and restart the daemon to configure it.
@@ -161,7 +172,7 @@ Local time and DST are handled automatically via the device's configured timezon
 
 ## Deployment
 
-The daemon runs as a user systemd service. `make deploy` installs the systemd unit (templated with the repo path) — config and `.env` stay in the repo directory.
+The daemon runs as a user systemd service. `make deploy` installs the systemd unit (templated with the repo path) — config stays in the repo directory.
 
 ```bash
 make deploy   # install and start
