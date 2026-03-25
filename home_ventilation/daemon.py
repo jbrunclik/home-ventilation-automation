@@ -27,6 +27,22 @@ logger = logging.getLogger(__name__)
 _SHUTDOWN_TIMEOUT_SECONDS = 10
 
 
+def _compute_wait_timeout(
+    poll_interval: float,
+    reconciliation_interval: float,
+    last_sensor_poll: float,
+    last_command_times: dict[str, float],
+    now_monotonic: float,
+) -> float:
+    """Compute sleep duration until the next poll or reconciliation deadline."""
+    time_to_next_poll = poll_interval - (now_monotonic - last_sensor_poll)
+    time_to_next_reconciliation = reconciliation_interval
+    for t in last_command_times.values():
+        remaining = reconciliation_interval - (now_monotonic - t)
+        time_to_next_reconciliation = min(time_to_next_reconciliation, remaining)
+    return max(0.0, min(time_to_next_poll, time_to_next_reconciliation))
+
+
 async def run(config: Config) -> None:
     loop = asyncio.get_running_loop()
     main_task = asyncio.current_task()
@@ -194,18 +210,19 @@ async def run(config: Config) -> None:
                 now,
             )
 
-            # Wait for webhook event or reconciliation timeout
+            # Wait for webhook event or next scheduled action (poll / reconciliation)
+            timeout = _compute_wait_timeout(
+                config.poll_interval_seconds,
+                config.reconciliation_interval_seconds,
+                last_sensor_poll,
+                last_command_time,
+                time.monotonic(),
+            )
             try:
-                await asyncio.wait_for(
-                    reevaluate.wait(), timeout=config.reconciliation_interval_seconds
-                )
+                await asyncio.wait_for(reevaluate.wait(), timeout=timeout)
             except asyncio.TimeoutError:
-                pass  # reconciliation tick
+                pass  # scheduled tick (poll or reconciliation)
             reevaluate.clear()
-
-            # Also set reevaluate after sensor poll so the loop wakes up
-            if read_sensors:
-                reevaluate.set()
 
     except asyncio.CancelledError:
         pass

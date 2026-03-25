@@ -124,6 +124,24 @@ def test_multiple_fans_and_sensors(tmp_path):
     assert data["sensors"][1]["label"] == "Living Room"
 
 
+def test_humidity_reports_max_not_average(tmp_path):
+    """Status humidity should use max() to match fan.py decision logic."""
+    fan_cfg = _make_fan_config(humidity_ips=["10.0.0.50", "10.0.0.52"])
+    fan_states = {"shower": FanState(current_speed=FanSpeed.LOW)}
+    cached_readings: dict[str, list[TuyaSensorReading | None]] = {"shower": []}
+
+    cache = SensorCache(str(tmp_path / "cache.json"), 120)
+    cache.update("10.0.0.50", 60.0)
+    cache.update("10.0.0.52", 70.0)
+
+    out = tmp_path / "status.json"
+    write_status(str(out), [fan_cfg], fan_states, cached_readings, cache, NOW)
+
+    data = json.loads(out.read_text())
+    # Should be max(60.0, 70.0) = 70.0, NOT average (65.0)
+    assert data["fans"][0]["humidity"] == 70.0
+
+
 def test_atomic_write_no_partial(tmp_path):
     """Status file should not exist in a half-written state."""
     fan_cfg = _make_fan_config()

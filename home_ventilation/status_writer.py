@@ -30,12 +30,12 @@ def write_status(
         state = fan_states.get(fan_cfg.name)
         speed = state.current_speed.value if state else "off"
 
-        # Average humidity across all sensors for this fan
+        # Max humidity across all sensors for this fan (matches decision logic in fan.py)
         humidity = None
         hum_values = [sensor_cache.get_humidity(ip, now) for ip in fan_cfg.humidity_sensor_ips]
         valid_hum = [v for v in hum_values if v is not None]
         if valid_hum:
-            humidity = round(sum(valid_hum) / len(valid_hum), 1)
+            humidity = round(max(valid_hum), 1)
 
         entry: dict = {"label": fan_cfg.label, "speed": speed}
         if humidity is not None:
