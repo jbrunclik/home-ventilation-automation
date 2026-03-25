@@ -2,10 +2,33 @@ import asyncio
 import logging
 
 from aiohttp import web
+from aiohttp.abc import AbstractAccessLogger
 
 from home_ventilation.sensor_cache import SensorCache
 
 logger = logging.getLogger(__name__)
+
+
+class _AccessLogger(AbstractAccessLogger):
+    """Log HTTP 2xx at DEBUG, 4xx at WARNING, 5xx at ERROR."""
+
+    def log(self, request: web.BaseRequest, response: web.StreamResponse, time: float) -> None:
+        status = response.status
+        if status >= 500:
+            level = logging.ERROR
+        elif status >= 400:
+            level = logging.WARNING
+        else:
+            level = logging.DEBUG
+        self.logger.log(
+            level,
+            '%s "%s %s" %s %.0fms',
+            request.remote,
+            request.method,
+            request.path_qs,
+            status,
+            time * 1000,
+        )
 
 
 async def _handle_shelly_webhook(request: web.Request) -> web.Response:
@@ -21,7 +44,7 @@ async def _handle_shelly_webhook(request: web.Request) -> web.Response:
     if hum is not None:
         humidity = float(hum)
         sensor_cache.update(src_ip, humidity)
-        logger.info("Webhook: %s humidity=%.1f%%", src_ip, humidity)
+        logger.debug("Webhook: %s humidity=%.1f%%", src_ip, humidity)
         reevaluate.set()
     elif input_id_raw is not None:
         state_raw = request.query.get("state")
@@ -62,7 +85,7 @@ def create_webhook_app(
 
 
 async def start_webhook_server(app: web.Application, port: int) -> web.AppRunner:
-    runner = web.AppRunner(app)
+    runner = web.AppRunner(app, access_log_class=_AccessLogger)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()

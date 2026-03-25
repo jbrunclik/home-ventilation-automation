@@ -2,7 +2,7 @@ import asyncio
 import logging
 import signal
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 
 import httpx
 
@@ -111,7 +111,7 @@ async def run(config: Config) -> None:
 
     try:
         while True:
-            now = datetime.now(timezone.utc)
+            now = datetime.now().astimezone()  # aware local time for schedule checks
             monotonic_now = time.monotonic()
 
             # Read sensors if enough time has passed
