@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from home_ventilation.config import FanConfig
-from home_ventilation.models import FanState
+from home_ventilation.models import FanState, TuyaSensorReading
 from home_ventilation.sensor_cache import SensorCache
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ def write_status(
     path: str,
     fan_configs: list[FanConfig],
     fan_states: dict[str, FanState],
-    cached_co2: dict[str, list[int | None]],
+    cached_readings: dict[str, list[TuyaSensorReading | None]],
     sensor_cache: SensorCache,
     now: datetime,
 ) -> None:
@@ -42,17 +42,28 @@ def write_status(
             entry["humidity"] = humidity
         fans.append(entry)
 
-    co2 = []
+    sensors = []
     for fan_cfg in fan_configs:
-        co2_values = cached_co2.get(fan_cfg.name, [])
+        readings = cached_readings.get(fan_cfg.name, [])
         for i, sensor in enumerate(fan_cfg.co2_sensors):
-            ppm = co2_values[i] if i < len(co2_values) else None
-            if ppm is not None:
-                co2.append({"label": sensor.label, "ppm": ppm})
+            reading = readings[i] if i < len(readings) else None
+            if reading is None:
+                continue
+            entry: dict = {"label": sensor.label}
+            if reading.co2 is not None:
+                entry["ppm"] = reading.co2
+            if reading.temperature is not None:
+                entry["temperature"] = reading.temperature
+            if reading.humidity is not None:
+                entry["humidity"] = reading.humidity
+            if reading.pm25 is not None:
+                entry["pm25"] = reading.pm25
+            if len(entry) > 1:  # has data beyond label
+                sensors.append(entry)
 
     status = {
         "fans": fans,
-        "co2": co2,
+        "sensors": sensors,
         "updated_at": now.astimezone(timezone.utc).isoformat(),
     }
 

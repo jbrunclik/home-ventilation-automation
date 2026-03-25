@@ -35,7 +35,8 @@ Hysteresis: thresholds 2–3 have a dead band (`co2_hysteresis`, `humidity_hyste
 
 ### Tuya CO2 sensors
 - Category `co2bj` (AIR_DETECTOR), protocol 3.5
-- DP 2 = `co2_value` (ppm), DP 13 = `alarm_switch`, DP 17 = `alarm_bright`
+- DP 2 = `co2_value` (ppm), DP 18 = `temperature` (°C), DP 19 = `humidity` (%), DP 101 = `pm25` (µg/m³)
+- DP 13 = `alarm_switch`, DP 17 = `alarm_bright`, DP 108 = `screen_sleep`
 - tinytuya is synchronous — all calls wrapped with `asyncio.to_thread()`
 - On startup: alarm disabled (DP 13 → False, DP 17 → 0)
 - Local key retrieved once from Tuya IoT Developer Platform, stored in `config.toml`
@@ -60,7 +61,7 @@ make restart   # systemctl restart
 | `config.py` | TOML loading → frozen dataclasses |
 | `models.py` | `FanSpeed` enum, `FanState` dataclass |
 | `fan.py` | Pure decision logic (no I/O) |
-| `tuya.py` | Tuya local API client (CO2 polling + device config) |
+| `tuya.py` | Tuya local API client (sensor polling + device config) |
 | `shelly.py` | Shelly Gen2+ RPC client (relays + inputs + cover refresh + device setup) |
 | `webhook.py` | aiohttp webhook server (humidity + switch input from Shelly devices) |
 | `status_writer.py` | Atomic JSON status snapshot for external consumers (dashboard) |

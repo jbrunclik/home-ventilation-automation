@@ -9,6 +9,14 @@ class FanSpeed(Enum):
     HIGH = "high"
 
 
+@dataclass(frozen=True)
+class TuyaSensorReading:
+    co2: int | None = None
+    temperature: float | None = None
+    humidity: float | None = None
+    pm25: float | None = None
+
+
 @dataclass
 class FanState:
     current_speed: FanSpeed = FanSpeed.OFF

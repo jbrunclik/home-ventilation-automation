@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 
 from home_ventilation.config import FanConfig, TuyaDeviceConfig
-from home_ventilation.models import FanSpeed, FanState
+from home_ventilation.models import FanSpeed, FanState, TuyaSensorReading
 from home_ventilation.sensor_cache import SensorCache
 from home_ventilation.status_writer import write_status
 
@@ -25,47 +25,68 @@ def _make_sensor(name="bedroom", label="Bedroom"):
     )
 
 
+def _reading(**kwargs):
+    return TuyaSensorReading(**kwargs)
+
+
 def test_basic_status_output(tmp_path):
     sensor = _make_sensor()
     fan_cfg = _make_fan_config(co2_sensors=[sensor], humidity_ips=["10.0.0.50"])
     fan_states = {"shower": FanState(current_speed=FanSpeed.LOW)}
-    cached_co2 = {"shower": [850]}
+    cached_readings = {"shower": [_reading(co2=850, temperature=22.0, humidity=48.0, pm25=12.0)]}
 
     cache = SensorCache(str(tmp_path / "cache.json"), 120)
     cache.update("10.0.0.50", 65.5)
 
     out = tmp_path / "status.json"
-    write_status(str(out), [fan_cfg], fan_states, cached_co2, cache, NOW)
+    write_status(str(out), [fan_cfg], fan_states, cached_readings, cache, NOW)
 
     data = json.loads(out.read_text())
     assert data["fans"] == [{"label": "Shower", "speed": "low", "humidity": 65.5}]
-    assert data["co2"] == [{"label": "Bedroom", "ppm": 850}]
+    assert data["sensors"] == [
+        {"label": "Bedroom", "ppm": 850, "temperature": 22.0, "humidity": 48.0, "pm25": 12.0}
+    ]
     assert data["updated_at"] == "2026-03-25T10:00:00+00:00"
 
 
-def test_null_co2_skipped(tmp_path):
+def test_null_reading_skipped(tmp_path):
     sensor = _make_sensor()
     fan_cfg = _make_fan_config(co2_sensors=[sensor])
     fan_states = {"shower": FanState()}
-    cached_co2 = {"shower": [None]}
+    cached_readings = {"shower": [None]}
 
     cache = SensorCache(str(tmp_path / "cache.json"), 120)
     out = tmp_path / "status.json"
-    write_status(str(out), [fan_cfg], fan_states, cached_co2, cache, NOW)
+    write_status(str(out), [fan_cfg], fan_states, cached_readings, cache, NOW)
 
     data = json.loads(out.read_text())
-    assert data["co2"] == []
+    assert data["sensors"] == []
+
+
+def test_partial_reading(tmp_path):
+    """Sensor with only CO2 — other fields omitted from output."""
+    sensor = _make_sensor()
+    fan_cfg = _make_fan_config(co2_sensors=[sensor])
+    fan_states = {"shower": FanState()}
+    cached_readings = {"shower": [_reading(co2=850)]}
+
+    cache = SensorCache(str(tmp_path / "cache.json"), 120)
+    out = tmp_path / "status.json"
+    write_status(str(out), [fan_cfg], fan_states, cached_readings, cache, NOW)
+
+    data = json.loads(out.read_text())
+    assert data["sensors"] == [{"label": "Bedroom", "ppm": 850}]
 
 
 def test_missing_humidity_omitted(tmp_path):
     fan_cfg = _make_fan_config(humidity_ips=["10.0.0.50"])
     fan_states = {"shower": FanState(current_speed=FanSpeed.HIGH)}
-    cached_co2 = {"shower": []}
+    cached_readings: dict[str, list[TuyaSensorReading | None]] = {"shower": []}
 
     cache = SensorCache(str(tmp_path / "cache.json"), 120)
     # No humidity update -> no value in cache
     out = tmp_path / "status.json"
-    write_status(str(out), [fan_cfg], fan_states, cached_co2, cache, NOW)
+    write_status(str(out), [fan_cfg], fan_states, cached_readings, cache, NOW)
 
     data = json.loads(out.read_text())
     assert data["fans"] == [{"label": "Shower", "speed": "high"}]
@@ -82,36 +103,39 @@ def test_multiple_fans_and_sensors(tmp_path):
         "shower": FanState(current_speed=FanSpeed.LOW),
         "bathroom": FanState(current_speed=FanSpeed.OFF),
     }
-    cached_co2 = {"shower": [850], "bathroom": [480]}
+    cached_readings = {
+        "shower": [_reading(co2=850, temperature=22.0)],
+        "bathroom": [_reading(co2=480, pm25=8.0)],
+    }
 
     cache = SensorCache(str(tmp_path / "cache.json"), 120)
     cache.update("10.0.0.50", 65.5)
     cache.update("10.0.0.52", 58.2)
 
     out = tmp_path / "status.json"
-    write_status(str(out), [fan1, fan2], fan_states, cached_co2, cache, NOW)
+    write_status(str(out), [fan1, fan2], fan_states, cached_readings, cache, NOW)
 
     data = json.loads(out.read_text())
     assert len(data["fans"]) == 2
-    assert len(data["co2"]) == 2
+    assert len(data["sensors"]) == 2
     assert data["fans"][0]["label"] == "Shower"
     assert data["fans"][1]["label"] == "Bathroom"
-    assert data["co2"][0]["label"] == "Bedroom"
-    assert data["co2"][1]["label"] == "Living Room"
+    assert data["sensors"][0]["label"] == "Bedroom"
+    assert data["sensors"][1]["label"] == "Living Room"
 
 
 def test_atomic_write_no_partial(tmp_path):
     """Status file should not exist in a half-written state."""
     fan_cfg = _make_fan_config()
     fan_states = {"shower": FanState()}
-    cached_co2 = {"shower": []}
+    cached_readings: dict[str, list[TuyaSensorReading | None]] = {"shower": []}
     cache = SensorCache(str(tmp_path / "cache.json"), 120)
 
     out = tmp_path / "status.json"
-    write_status(str(out), [fan_cfg], fan_states, cached_co2, cache, NOW)
+    write_status(str(out), [fan_cfg], fan_states, cached_readings, cache, NOW)
 
     # File should be valid JSON
     data = json.loads(out.read_text())
     assert "fans" in data
-    assert "co2" in data
+    assert "sensors" in data
     assert "updated_at" in data

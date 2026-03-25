@@ -8,7 +8,7 @@ import httpx
 
 from home_ventilation.config import Config
 from home_ventilation.fan import decide_speed
-from home_ventilation.models import FanSpeed, FanState
+from home_ventilation.models import FanSpeed, FanState, TuyaSensorReading
 from home_ventilation.sensor_cache import SensorCache
 from home_ventilation.status_writer import write_status
 from home_ventilation.shelly import (
@@ -18,7 +18,7 @@ from home_ventilation.shelly import (
     refresh_fan_speed,
     set_fan_speed,
 )
-from home_ventilation.tuya import configure_tuya_sensor, poll_co2_sensor
+from home_ventilation.tuya import configure_tuya_sensor, poll_tuya_sensor
 from home_ventilation.webhook import create_webhook_app, start_webhook_server
 
 logger = logging.getLogger(__name__)
@@ -54,8 +54,10 @@ async def run(config: Config) -> None:
     # Track last command time per fan for reconciliation
     last_command_time: dict[str, float] = {fan.name: 0.0 for fan in config.fans}
 
-    # Cached CO2 readings per fan
-    cached_co2: dict[str, list[int | None]] = {fan.name: [] for fan in config.fans}
+    # Cached sensor readings per fan
+    cached_readings: dict[str, list[TuyaSensorReading | None]] = {
+        fan.name: [] for fan in config.fans
+    }
     last_sensor_poll = 0.0  # force immediate first sensor read
 
     # Configure devices on startup
@@ -105,16 +107,16 @@ async def run(config: Config) -> None:
                 try:
                     state = fan_states[fan_cfg.name]
 
-                    # Poll Tuya CO2 sensors on the slow cadence (network I/O)
+                    # Poll Tuya sensors on the slow cadence (network I/O)
                     if read_sensors:
-                        co2_values: list[int | None] = []
+                        readings: list[TuyaSensorReading | None] = []
                         for sensor in fan_cfg.co2_sensors:
-                            co2_values.append(
-                                await poll_co2_sensor(
+                            readings.append(
+                                await poll_tuya_sensor(
                                     sensor.device_id, sensor.ip, sensor.local_key
                                 )
                             )
-                        cached_co2[fan_cfg.name] = co2_values
+                        cached_readings[fan_cfg.name] = readings
 
                     # Webhook humidity: read fresh every cycle (in-memory lookup)
                     humidity_values = [
@@ -130,9 +132,12 @@ async def run(config: Config) -> None:
                     else:
                         relevant_switches = {}
 
+                    # Extract CO2 values for fan control (other readings are display-only)
+                    co2_values = [r.co2 if r else None for r in cached_readings[fan_cfg.name]]
+
                     # Decide speed
                     new_speed, new_state = decide_speed(
-                        co2_values=cached_co2[fan_cfg.name],
+                        co2_values=co2_values,
                         humidity_values=humidity_values,
                         switch_states=relevant_switches,
                         current_state=state,
@@ -153,7 +158,7 @@ async def run(config: Config) -> None:
                                 fan_cfg.name,
                                 state.current_speed.value,
                                 new_speed.value,
-                                cached_co2[fan_cfg.name],
+                                co2_values,
                                 humidity_values,
                             )
                             await set_fan_speed(shelly_client, fan_cfg.shelly_host, new_speed)
@@ -170,7 +175,7 @@ async def run(config: Config) -> None:
                             "[%s] Speed unchanged: %s (CO2=%s, humidity=%s)",
                             fan_cfg.name,
                             new_speed.value,
-                            cached_co2[fan_cfg.name],
+                            co2_values,
                             humidity_values,
                         )
 
@@ -184,7 +189,7 @@ async def run(config: Config) -> None:
                 config.status_file_path,
                 config.fans,
                 fan_states,
-                cached_co2,
+                cached_readings,
                 sensor_cache,
                 now,
             )
