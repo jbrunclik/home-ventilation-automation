@@ -130,9 +130,11 @@ async def configure_shelly_device(
 async def _configure_cover(client: httpx.AsyncClient, host: str, maxtime: float = 300.0) -> None:
     """Set cover to detached + locked with max timeouts.
 
+    Stops the cover first — firmware rejects SetConfig while running.
     in_locked is set in a separate call — firmware ignores it when sent
     together with in_mode (see CLAUDE.md).
     """
+    await client.get(f"http://{host}/rpc/Cover.Stop", params={"id": 0}, timeout=5.0)
     resp = await client.post(
         f"http://{host}/rpc/Cover.SetConfig",
         json={
