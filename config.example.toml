@@ -4,6 +4,7 @@ manual_override_minutes = 15
 webhook_host = "192.168.1.1"  # daemon IP for Shelly webhook URLs
 webhook_port = 8090
 # sensor_cache_path = "/dev/shm/home-ventilation-sensor-cache.json"  # default: ramdisk
+# status_file_path = "/dev/shm/home-ventilation-status.json"  # default: dashboard status snapshot
 humidity_stale_minutes = 120  # ignore readings older than this
 
 [thresholds]
@@ -15,6 +16,7 @@ co2_hysteresis = 50        # ppm dead band to prevent toggling near threshold
 humidity_hysteresis = 3.0  # % dead band to prevent toggling near threshold
 
 [fans.master_bathroom]
+label = "Master Bathroom"
 shelly_host = "192.168.1.120"
 humidity_sensor_ips = ["192.168.1.150"]  # Shelly H&T Gen3 IPs (identified by source IP)
 switch_inputs = [0]
@@ -22,11 +24,13 @@ switch_inputs = [0]
 # Tuya CO2 sensors (local API, no cloud dependency)
 # Get device_id + local_key from Tuya IoT Developer Platform (iot.tuya.com)
 [fans.master_bathroom.co2_sensors.master_bedroom]
+label = "Master Bedroom"          # display name for dashboard (default: title-cased key)
 device_id = "abc123def456"
 ip = "192.168.1.160"
 local_key = "your_local_key"
 
 [fans.master_bathroom.co2_sensors.living_room]
+label = "Living Room"
 device_id = "def456ghi789"
 ip = "192.168.1.161"
 local_key = "your_local_key"
@@ -40,10 +44,12 @@ speed = "low"         # "low" or "high"
 max_speed = "low"     # cap sensor-driven speed during this window (switch override bypasses)
 
 [fans.toilet]
+label = "Toilet"
 shelly_host = "192.168.1.121"
 switch_inputs = [0, 1]
 
 [fans.toilet.co2_sensors.kids_bedroom_1]
+label = "Kids Bedroom 1"
 device_id = "ghi789jkl012"
 ip = "192.168.1.162"
 local_key = "your_local_key"

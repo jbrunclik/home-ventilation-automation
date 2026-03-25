@@ -18,6 +18,8 @@ class TuyaDeviceConfig:
     device_id: str
     ip: str
     local_key: str
+    name: str = ""
+    label: str = ""
 
 
 @dataclass(frozen=True)
@@ -32,6 +34,7 @@ class ScheduleConfig:
 @dataclass(frozen=True)
 class FanConfig:
     name: str
+    label: str = ""
     shelly_host: str = ""
     co2_sensors: list[TuyaDeviceConfig] = field(default_factory=list)
     switch_inputs: list[int] = field(default_factory=list)
@@ -49,6 +52,7 @@ class Config:
     webhook_host: str
     webhook_port: int = 8090
     sensor_cache_path: str = "/dev/shm/home-ventilation-sensor-cache.json"
+    status_file_path: str = "/dev/shm/home-ventilation-status.json"
     humidity_stale_minutes: int = 120
 
 
@@ -71,17 +75,22 @@ def load_config(path: Path) -> Config:
 
         co2_sensors = []
         for sensor_name, sensor_data in fan_data.get("co2_sensors", {}).items():
+            sensor_label = sensor_data.get("label", sensor_name.replace("_", " ").title())
             co2_sensors.append(
                 TuyaDeviceConfig(
                     device_id=sensor_data["device_id"],
                     ip=sensor_data["ip"],
                     local_key=sensor_data["local_key"],
+                    name=sensor_name,
+                    label=sensor_label,
                 )
             )
 
+        fan_label = fan_data.get("label", name.replace("_", " ").title())
         fans.append(
             FanConfig(
                 name=name,
+                label=fan_label,
                 shelly_host=fan_data.get("shelly_host", ""),
                 co2_sensors=co2_sensors,
                 switch_inputs=fan_data.get("switch_inputs", []),
@@ -100,6 +109,12 @@ def load_config(path: Path) -> Config:
     if not webhook_host:
         raise ValueError("webhook_host is required in config")
 
+    # Resolve status_file_path the same way as sensor_cache_path
+    status_path_raw = raw.get("status_file_path", "/dev/shm/home-ventilation-status.json")
+    status_path = Path(status_path_raw)
+    if not status_path.is_absolute():
+        status_path = path.parent / status_path
+
     return Config(
         poll_interval_seconds=raw.get("poll_interval_seconds", 30),
         reconciliation_interval_seconds=raw.get("reconciliation_interval_seconds", 60),
@@ -109,5 +124,6 @@ def load_config(path: Path) -> Config:
         webhook_host=webhook_host,
         webhook_port=raw.get("webhook_port", 8090),
         sensor_cache_path=str(cache_path),
+        status_file_path=str(status_path),
         humidity_stale_minutes=raw.get("humidity_stale_minutes", 120),
     )

@@ -63,6 +63,7 @@ make restart   # systemctl restart
 | `tuya.py` | Tuya local API client (CO2 polling + device config) |
 | `shelly.py` | Shelly Gen2+ RPC client (relays + inputs + cover refresh + device setup) |
 | `webhook.py` | aiohttp webhook server (humidity + switch input from Shelly devices) |
+| `status_writer.py` | Atomic JSON status snapshot for external consumers (dashboard) |
 | `daemon.py` | Event-driven main loop, orchestration |
 | `__main__.py` | CLI entry point |
 | `shelly-scripts/cover-switch-override.js` | Standalone Shelly script — same decision logic, runs on-device |

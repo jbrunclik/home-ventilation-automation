@@ -10,6 +10,7 @@ from home_ventilation.config import Config
 from home_ventilation.fan import decide_speed
 from home_ventilation.models import FanSpeed, FanState
 from home_ventilation.sensor_cache import SensorCache
+from home_ventilation.status_writer import write_status
 from home_ventilation.shelly import (
     configure_humidity_sensor,
     configure_shelly_device,
@@ -177,6 +178,16 @@ async def run(config: Config) -> None:
 
                 except Exception:
                     logger.exception("[%s] Error in control cycle", fan_cfg.name)
+
+            # Write status snapshot for external consumers (best-effort)
+            write_status(
+                config.status_file_path,
+                config.fans,
+                fan_states,
+                cached_co2,
+                sensor_cache,
+                now,
+            )
 
             # Wait for webhook event or reconciliation timeout
             try:
