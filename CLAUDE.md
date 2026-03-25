@@ -27,9 +27,9 @@ The main loop awaits an `asyncio.Event` with reconciliation timeout — webhooks
 
 ### Decision priority (highest → lowest)
 1. Manual switch ON → HIGH while held; cooldown timer starts on release
-2. Humidity: >70% → HIGH, 60–70% → LOW
-3. CO2: >1200 ppm → HIGH, 800–1200 ppm → LOW, <800 → OFF
-4. Time-based schedule (per-fan, optional) → configurable speed
+2. Humidity: >70% → HIGH, 60–70% → LOW (capped by `max_speed` during schedule window)
+3. CO2: >1200 ppm → HIGH, 800–1200 ppm → LOW, <800 → OFF (capped by `max_speed` during schedule window)
+4. Time-based schedule (per-fan, optional) → configurable speed (`run_minutes=0` disables periodic runs)
 
 Hysteresis: thresholds 2–3 have a dead band (`co2_hysteresis`, `humidity_hysteresis`) to prevent toggling when a sensor hovers near a boundary. The "turn on" threshold is unchanged; the "turn off" threshold is lowered by the hysteresis margin when the fan is already at/above the guarded speed (e.g. OFF→LOW at 800 ppm, LOW→OFF at 750 ppm with `co2_hysteresis=50`).
 

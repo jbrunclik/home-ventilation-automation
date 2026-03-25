@@ -6,6 +6,10 @@ from home_ventilation.models import FanSpeed, FanState
 from tests.conftest import DEFAULT_THRESHOLDS
 
 SCHEDULE = ScheduleConfig(start_hour=22, end_hour=7, run_minutes=10, speed="low")
+SCHEDULE_CAP_ONLY = ScheduleConfig(start_hour=22, end_hour=7, run_minutes=0, max_speed="low")
+SCHEDULE_WITH_CAP = ScheduleConfig(
+    start_hour=22, end_hour=7, run_minutes=10, speed="low", max_speed="low"
+)
 
 NOW = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
 OVERRIDE_MINUTES = 15
@@ -654,5 +658,120 @@ def test_co2_hysteresis_exact_boundary():
         thresholds=DEFAULT_THRESHOLDS,
         override_minutes=OVERRIDE_MINUTES,
         now=NOW,
+    )
+    assert speed == FanSpeed.LOW
+
+
+# --- max_speed cap ---
+
+
+def test_max_speed_caps_co2_high_to_low_at_night():
+    """CO2 >1200 would normally give HIGH, but max_speed caps to LOW at night."""
+    night = datetime(2026, 1, 15, 23, 30, 0, tzinfo=timezone.utc)
+    speed, _ = decide_speed(
+        co2_values=[1500],
+        humidity_values=[40.0],
+        switch_states={0: False},
+        current_state=_state(),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=night,
+        schedule=SCHEDULE_CAP_ONLY,
+    )
+    assert speed == FanSpeed.LOW
+
+
+def test_max_speed_caps_humidity_high_to_low_at_night():
+    """Humidity >70 would normally give HIGH, but max_speed caps to LOW at night."""
+    night = datetime(2026, 1, 15, 23, 30, 0, tzinfo=timezone.utc)
+    speed, _ = decide_speed(
+        co2_values=[400],
+        humidity_values=[80.0],
+        switch_states={0: False},
+        current_state=_state(),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=night,
+        schedule=SCHEDULE_CAP_ONLY,
+    )
+    assert speed == FanSpeed.LOW
+
+
+def test_max_speed_no_effect_during_day():
+    """max_speed doesn't apply outside the schedule window."""
+    day = datetime(2026, 1, 15, 14, 0, 0, tzinfo=timezone.utc)
+    speed, _ = decide_speed(
+        co2_values=[1500],
+        humidity_values=[40.0],
+        switch_states={0: False},
+        current_state=_state(),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=day,
+        schedule=SCHEDULE_CAP_ONLY,
+    )
+    assert speed == FanSpeed.HIGH
+
+
+def test_max_speed_switch_override_bypasses_cap():
+    """Switch override should bypass the max_speed cap."""
+    night = datetime(2026, 1, 15, 23, 30, 0, tzinfo=timezone.utc)
+    speed, _ = decide_speed(
+        co2_values=[400],
+        humidity_values=[40.0],
+        switch_states={0: True},
+        current_state=_state(prev_switches={0: False}),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=night,
+        schedule=SCHEDULE_CAP_ONLY,
+    )
+    assert speed == FanSpeed.HIGH
+
+
+def test_max_speed_does_not_raise_low_to_high():
+    """max_speed=low should not affect a speed that's already LOW."""
+    night = datetime(2026, 1, 15, 23, 30, 0, tzinfo=timezone.utc)
+    speed, _ = decide_speed(
+        co2_values=[900],
+        humidity_values=[40.0],
+        switch_states={0: False},
+        current_state=_state(),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=night,
+        schedule=SCHEDULE_CAP_ONLY,
+    )
+    assert speed == FanSpeed.LOW
+
+
+def test_cap_only_no_periodic_run():
+    """run_minutes=0 with max_speed: no periodic runs, but cap still applies."""
+    night = datetime(2026, 1, 15, 23, 5, 0, tzinfo=timezone.utc)
+    speed, _ = decide_speed(
+        co2_values=[400],
+        humidity_values=[40.0],
+        switch_states={0: False},
+        current_state=_state(),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=night,
+        schedule=SCHEDULE_CAP_ONLY,
+    )
+    assert speed == FanSpeed.OFF
+
+
+def test_schedule_with_cap_periodic_still_works():
+    """Schedule with both run_minutes and max_speed: periodic runs still work."""
+    night = datetime(2026, 1, 15, 23, 5, 0, tzinfo=timezone.utc)
+    speed, _ = decide_speed(
+        co2_values=[400],
+        humidity_values=[40.0],
+        switch_states={0: False},
+        current_state=_state(),
+        thresholds=DEFAULT_THRESHOLDS,
+        override_minutes=OVERRIDE_MINUTES,
+        now=night,
+        schedule=SCHEDULE_WITH_CAP,
     )
     assert speed == FanSpeed.LOW

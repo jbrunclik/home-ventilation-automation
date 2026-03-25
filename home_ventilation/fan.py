@@ -4,18 +4,30 @@ from home_ventilation.config import ScheduleConfig, ThresholdsConfig
 from home_ventilation.models import FanSpeed, FanState
 
 
-def _is_schedule_active(schedule: ScheduleConfig, now: datetime) -> bool:
-    """Check if the current time falls within an active schedule window."""
+def _in_schedule_window(schedule: ScheduleConfig, now: datetime) -> bool:
+    """Check if the current time falls within the schedule's time window."""
     hour = now.hour
-    minute = now.minute
-
-    # Check if hour is within start_hour..end_hour (may wrap past midnight)
     if schedule.start_hour > schedule.end_hour:
-        in_range = hour >= schedule.start_hour or hour < schedule.end_hour
-    else:
-        in_range = schedule.start_hour <= hour < schedule.end_hour
+        return hour >= schedule.start_hour or hour < schedule.end_hour
+    return schedule.start_hour <= hour < schedule.end_hour
 
-    return in_range and minute < schedule.run_minutes
+
+def _is_schedule_active(schedule: ScheduleConfig, now: datetime) -> bool:
+    """Check if the periodic run is active (inside window AND within run_minutes)."""
+    return (
+        schedule.run_minutes > 0
+        and _in_schedule_window(schedule, now)
+        and now.minute < schedule.run_minutes
+    )
+
+
+def _apply_max_speed(speed: FanSpeed, schedule: ScheduleConfig | None, now: datetime) -> FanSpeed:
+    """Cap speed to schedule.max_speed when inside the schedule window."""
+    if schedule and schedule.max_speed and _in_schedule_window(schedule, now):
+        cap = FanSpeed(schedule.max_speed)
+        if speed.value == "high" and cap.value == "low":
+            return cap
+    return speed
 
 
 def decide_speed(
@@ -80,14 +92,15 @@ def decide_speed(
         if current_speed in (FanSpeed.LOW, FanSpeed.HIGH):
             eff_humidity_low -= thresholds.humidity_hysteresis
         if max_humidity > eff_humidity_high:
-            return FanSpeed.HIGH, FanState(
-                current_speed=FanSpeed.HIGH,
-                override_until=override_until,
-                previous_switch_states=new_switch_states,
-            )
-        if max_humidity >= eff_humidity_low:
-            return FanSpeed.LOW, FanState(
-                current_speed=FanSpeed.LOW,
+            speed = FanSpeed.HIGH
+        elif max_humidity >= eff_humidity_low:
+            speed = FanSpeed.LOW
+        else:
+            speed = None
+        if speed is not None:
+            speed = _apply_max_speed(speed, schedule, now)
+            return speed, FanState(
+                current_speed=speed,
                 override_until=override_until,
                 previous_switch_states=new_switch_states,
             )
@@ -104,14 +117,15 @@ def decide_speed(
         if current_speed in (FanSpeed.LOW, FanSpeed.HIGH):
             eff_co2_low -= thresholds.co2_hysteresis
         if max_co2 > eff_co2_high:
-            return FanSpeed.HIGH, FanState(
-                current_speed=FanSpeed.HIGH,
-                override_until=override_until,
-                previous_switch_states=new_switch_states,
-            )
-        if max_co2 >= eff_co2_low:
-            return FanSpeed.LOW, FanState(
-                current_speed=FanSpeed.LOW,
+            speed = FanSpeed.HIGH
+        elif max_co2 >= eff_co2_low:
+            speed = FanSpeed.LOW
+        else:
+            speed = None
+        if speed is not None:
+            speed = _apply_max_speed(speed, schedule, now)
+            return speed, FanState(
+                current_speed=speed,
                 override_until=override_until,
                 previous_switch_states=new_switch_states,
             )

@@ -26,6 +26,7 @@ class ScheduleConfig:
     end_hour: int = 7
     run_minutes: int = 10
     speed: str = "low"
+    max_speed: str = ""
 
 
 @dataclass(frozen=True)

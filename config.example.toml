@@ -31,12 +31,13 @@ device_id = "def456ghi789"
 ip = "192.168.1.161"
 local_key = "your_local_key"
 
-# Optional: run fan on a periodic schedule (e.g. nighttime ventilation)
+# Optional: nighttime schedule and/or speed cap
 [fans.master_bathroom.schedule]
 start_hour = 22       # schedule active from 22:00...
 end_hour = 7          # ...until 07:00
-run_minutes = 10      # run first 10 minutes of each hour
+run_minutes = 10      # run first 10 minutes of each hour (0 = no periodic runs)
 speed = "low"         # "low" or "high"
+max_speed = "low"     # cap sensor-driven speed during this window (switch override bypasses)
 
 [fans.toilet]
 shelly_host = "192.168.1.121"
