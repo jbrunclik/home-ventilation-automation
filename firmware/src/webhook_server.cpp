@@ -28,7 +28,7 @@ body{background:#111;color:#eee;font-family:sans-serif;min-height:100vh}
 .hbtn.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
 .hbtn.open span:nth-child(2){opacity:0}
 .hbtn.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
-.drawer{position:fixed;top:52px;left:0;bottom:0;width:200px;background:#1a1a1a;border-right:1px solid #2a2a2a;transform:translateX(-100%);transition:transform .25s;z-index:90;padding:8px 0}
+.drawer{position:fixed;top:52px;left:0;bottom:0;width:200px;background:#1a1a1a;border-right:1px solid #2a2a2a;transform:translateX(-100%);transition:transform .25s;z-index:90;padding:8px 0;display:flex;flex-direction:column}
 .drawer.open{transform:translateX(0)}
 .drawer a{display:block;padding:14px 20px;color:#bbb;text-decoration:none;font-size:.95rem;border-left:3px solid transparent;transition:.15s}
 .drawer a.active,.drawer a:hover{color:#fff;background:#242424;border-left-color:#5599ee}
@@ -81,6 +81,8 @@ canvas{display:block;width:100%;border-radius:8px}
   <a href="#" class="active" onclick="nav('dashboard',this)">Dashboard</a>
   <a href="#" onclick="nav('controls',this)">Controls</a>
   <a href="#" onclick="nav('history',this)">History</a>
+  <a href="https://github.com/jbrunclik" target="_blank" style="margin-top:auto;border-top:1px solid #2a2a2a">github.com/jbrunclik</a>
+  <a href="https://github.com/vbtronic" target="_blank">github.com/vbtronic</a>
 </nav>
 <div class="content">
   <div id="err" class="err">Cannot reach device</div>
