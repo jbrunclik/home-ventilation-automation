@@ -74,7 +74,7 @@ static void drawSparkline(const History& history, int x, int y, int w, int h) {
         int bar_h = ((v - mn) * (h - 2)) / (mx - mn);
         if (bar_h < 1) bar_h = 1;
         int bar_top = y + h - bar_h;
-        canvas.drawFastVLine(px, bar_top, bar_h, COLOR_DIM);
+        canvas.drawFastVLine(px, bar_top, bar_h, 0x422B);  // Surface1 #45475a
     }
 }
 
@@ -108,14 +108,10 @@ void displayUpdate(const TuyaReading& reading, const FanState& state,
     // CO2 sparkline behind the reading (y: 14..85)
     drawSparkline(history, 0, 14, 128, 72);
 
-    // WiFi indicator (top-left corner)
-    canvas.setTextSize(1);
-    canvas.setTextDatum(TL_DATUM);
-    canvas.setTextColor(wifi_connected ? COLOR_GREEN : COLOR_RED, COLOR_BG);
-    canvas.drawString(wifi_connected ? "WiFi" : "NO WIFI", 2, 2);
-
-    // IP address (top-right corner)
+    // WiFi status dot (top-left) + IP address (top-right)
+    canvas.fillCircle(4, 5, 3, wifi_connected ? COLOR_GREEN : COLOR_RED);
     if (wifi_connected) {
+        canvas.setTextSize(1);
         canvas.setTextDatum(TR_DATUM);
         canvas.setTextColor(COLOR_GRAY, COLOR_BG);
         canvas.drawString(WiFi.localIP().toString().c_str(), 126, 2);
