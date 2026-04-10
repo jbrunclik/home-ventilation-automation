@@ -27,6 +27,7 @@ dev = [
 [tool.ruff]
 line-length = 99
 target-version = "py312"
+exclude = ["firmware/scripts/embed_html.py"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

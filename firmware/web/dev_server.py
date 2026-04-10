@@ -13,7 +13,12 @@ START_TIME = time.time()
 PORT = 3000
 HISTORY_INTERVAL_S = 300
 
-fan = {"fan_speed": "off", "override_until": 0.0, "manual_override_minutes": 10, "switch_active": False}
+fan = {
+    "fan_speed": "off",
+    "override_until": 0.0,
+    "manual_override_minutes": 10,
+    "switch_active": False,
+}
 
 
 def get_status() -> dict:
@@ -49,10 +54,16 @@ def get_history() -> dict:
         hum = round(54 + 12 * math.sin(phase * 0.6 + 1), 1)
         pm25 = round(7 + 5 * abs(math.sin(phase * 0.8)), 1)
         fan_speed = 2 if co2 > 1100 else 1 if co2 > 900 else 0
-        entries.append({
-            "t": t, "co2": co2, "temp": temp,
-            "hum": hum, "pm25": pm25, "fan": fan_speed,
-        })
+        entries.append(
+            {
+                "t": t,
+                "co2": co2,
+                "temp": temp,
+                "hum": hum,
+                "pm25": pm25,
+                "fan": fan_speed,
+            }
+        )
     return {"interval_s": HISTORY_INTERVAL_S, "count": len(entries), "entries": entries}
 
 

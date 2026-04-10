@@ -10,7 +10,6 @@ WiFi credentials are prompted interactively (not stored in TOML).
 import json
 import sys
 import tomllib
-from pathlib import Path
 
 
 def convert(toml_path: str, fan_name: str | None = None) -> dict:
