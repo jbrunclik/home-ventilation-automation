@@ -241,6 +241,7 @@ static bool queryStatus(WiFiClient& client, const uint8_t* session_key,
 
     out.co2 = dps["2"] | -1;
     out.temperature = dps["18"] | -1.0f;
+    out.humidity = dps["19"] | -1.0f;
     out.pm25 = dps["101"] | -1.0f;
     out.valid = (out.co2 >= 0);
 
@@ -301,8 +302,8 @@ bool tuyaPollSensor(const TuyaSensorConfig& config, TuyaReading& out) {
     client.stop();
 
     if (ok) {
-        Serial.printf("Tuya: %s CO2=%d ppm, temp=%.0f, pm25=%.0f\n",
-                      config.ip, out.co2, out.temperature, out.pm25);
+        Serial.printf("Tuya: %s CO2=%d ppm, temp=%.0f, hum=%.0f%%, pm25=%.0f\n",
+                      config.ip, out.co2, out.temperature, out.humidity, out.pm25);
     }
     return ok;
 }

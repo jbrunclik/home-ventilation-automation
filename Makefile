@@ -1,8 +1,9 @@
-.PHONY: help dev install lint format test deploy logs status restart
+.PHONY: help dev install lint format test deploy logs status restart \
+       firmware-dev firmware-build firmware-upload firmware-monitor firmware-config firmware-uploadfs
 .DEFAULT_GOAL := help
 
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 dev: ## Install all deps (uv sync)
 	uv sync
@@ -35,3 +36,24 @@ status: ## Show systemctl status
 
 restart: ## Restart the service
 	systemctl --user restart home-ventilation
+
+# --- Firmware (M5Stack AtomS3R) ---
+
+firmware-dev: ## Run web UI dev server with mock data
+	python3 firmware/web/dev_server.py
+
+firmware-build: ## Build ESP32 firmware
+	cd firmware && pio run
+
+firmware-upload: ## Build and flash firmware to M5Stack via USB
+	cd firmware && pio run --target upload
+
+firmware-monitor: ## Open serial monitor (115200 baud)
+	cd firmware && pio device monitor
+
+firmware-config: ## Generate firmware config from config.toml
+	python3 firmware/scripts/toml2json.py config.toml $(FAN) > firmware/data/config.json
+	@echo "Written firmware/data/config.json — edit wifi_ssid/wifi_password before uploading"
+
+firmware-uploadfs: ## Upload LittleFS filesystem (config) to M5Stack
+	cd firmware && pio run --target uploadfs

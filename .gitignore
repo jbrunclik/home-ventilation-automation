@@ -26,6 +26,7 @@ tuya-raw.json
 firmware/.pio/
 firmware/data/config.json
 firmware/.vscode/
+firmware/src/html_page.h
 
 # Temp files
 *.tmp

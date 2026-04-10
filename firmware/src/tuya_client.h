@@ -5,6 +5,7 @@
 struct TuyaReading {
     int co2 = -1;           // ppm, -1 = no data
     float temperature = -1;  // celsius
+    float humidity = -1;    // %, DP 19
     float pm25 = -1;        // ug/m3
     bool valid = false;
 };

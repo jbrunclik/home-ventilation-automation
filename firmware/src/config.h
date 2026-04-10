@@ -32,6 +32,7 @@ struct Config {
     int reconciliation_interval_seconds = 60;
     int manual_override_minutes = 10;
     int webhook_port = 8090;
+    int display_rotation = 0;  // 0-3 (M5 rotation values)
     ThresholdsConfig thresholds;
     char shelly_host[16] = {};
     int switch_inputs[MAX_SWITCH_INPUTS] = {};
@@ -44,3 +45,4 @@ struct Config {
 
 // Load config from /config.json on LittleFS. Returns true on success.
 bool loadConfig(Config& config);
+
