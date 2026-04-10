@@ -6,6 +6,7 @@
   "reconciliation_interval_seconds": 60,
   "manual_override_minutes": 10,
   "webhook_port": 8090,
+  "display_rotation": 0,
   "thresholds": {
     "co2_low": 800,
     "co2_high": 1200,

@@ -45,8 +45,8 @@ static uint16_t speedColor(FanSpeed speed) {
     }
 }
 
-void displaySetup() {
-    M5.Display.setRotation(0);
+void displaySetup(int rotation) {
+    M5.Display.setRotation(rotation);
     M5.Display.fillScreen(COLOR_BG);
     canvas.createSprite(128, 128);
     canvas.setTextDatum(MC_DATUM);

@@ -39,6 +39,7 @@ bool loadConfig(Config& config) {
     config.reconciliation_interval_seconds = doc["reconciliation_interval_seconds"] | 60;
     config.manual_override_minutes = doc["manual_override_minutes"] | 10;
     config.webhook_port = doc["webhook_port"] | 8090;
+    config.display_rotation = doc["display_rotation"] | 0;
 
     // Thresholds
     JsonObject thr = doc["thresholds"];

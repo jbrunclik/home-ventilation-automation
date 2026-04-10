@@ -4,7 +4,7 @@
 #include "history.h"
 #include "tuya_client.h"
 
-void displaySetup();
+void displaySetup(int rotation = 0);
 
 // Update display with current state. Only redraws on change.
 void displayUpdate(const TuyaReading& reading, const FanState& state,

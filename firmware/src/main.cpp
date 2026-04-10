@@ -139,7 +139,7 @@ void setup() {
     Serial.begin(115200);
     Serial.println("\n=== Ventilation Controller ===");
 
-    displaySetup();
+    displaySetup(config.display_rotation);
 
     // Load config
     if (!loadConfig(config)) {
