@@ -22,6 +22,14 @@ snapshot.json
 tinytuya.json
 tuya-raw.json
 
+# ESP32 firmware
+firmware/.pio/
+firmware/data/config.json
+firmware/.vscode/
+
+# Temp files
+*.tmp
+
 # IDE
 .idea/
 .vscode/

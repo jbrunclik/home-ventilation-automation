@@ -170,6 +170,74 @@ Local time and DST are handled automatically via the device's configured timezon
 
 **Limitations:** no sensor-based control (CO2/humidity) yet — architecture is ready, just needs pollers and thresholds in `desiredSpeed()`.
 
+**Note:** If switching to the ESP32 controller (see below), the ESP32 will automatically remove this script from the Shelly on its first boot.
+
+## ESP32 Standalone Controller
+
+For apartments without a server, the [`firmware/`](firmware/) directory contains a complete ventilation controller that runs on an **M5Stack AtomS3R** (ESP32-S3, 128x128 IPS display, USB-C). It replicates the Python daemon for a single fan — CO2-based control, switch override, schedule, hysteresis — all running locally on a $15 device.
+
+### Features
+
+- **Tuya CO2 sensor** — polls via local TCP protocol 3.5 (AES-GCM encrypted, no cloud)
+- **Shelly 2PM control** — same cover mode API as the Python daemon
+- **Switch webhooks** — Shelly pushes toggle events to the ESP32's HTTP server
+- **128x128 display** — CO2 ppm (color-coded), fan speed, live manual override countdown (updates every second)
+- **Schedule + hysteresis** — same logic as the Python daemon
+- **OTA updates** — `pio run -t upload --upload-port ventilation.local`
+- **Auto-configures Shelly on boot** — removes existing scripts, sets cover mode, configures webhooks
+
+### Hardware
+
+- [M5Stack AtomS3R](https://shop.m5stack.com/products/atoms3r-dev-kit) (~$15) — ESP32-S3, 8MB flash, 8MB PSRAM, 0.85" IPS display
+- Tuya CO2 sensor (WiFi, protocol 3.5, category `co2bj`)
+- Shelly 2PM Gen4 (cover mode)
+- USB-C power supply
+
+### Quick Start
+
+```bash
+cd firmware
+
+# Install PlatformIO (if not already)
+pip install platformio
+
+# Create config from TOML (or copy and edit the example)
+python scripts/toml2json.py ../config.toml shower > data/config.json
+# Edit data/config.json — set wifi_ssid, wifi_password, device IPs
+
+# Upload config to ESP32 filesystem
+pio run -t uploadfs
+
+# Build and flash firmware
+pio run -t upload
+
+# Monitor serial output
+pio device monitor
+```
+
+### Configuration
+
+Config is a JSON file on the ESP32's LittleFS filesystem. See [`config.example.json`](firmware/config.example.json) for the full schema. Key fields:
+
+| Key | Description | Default |
+|---|---|---|
+| `wifi_ssid` / `wifi_password` | WiFi credentials | — |
+| `timezone` | POSIX TZ string for schedule | `CET-1CEST,M3.5.0,M10.5.0/3` |
+| `poll_interval_seconds` | CO2 sensor polling interval | 30 |
+| `reconciliation_interval_seconds` | Re-issue cover command interval | 60 |
+| `manual_override_minutes` | Duration of switch override | 10 |
+| `shelly_host` | Shelly 2PM IP address | — |
+| `co2_sensor.device_id` / `ip` / `local_key` | Tuya sensor credentials | — |
+
+Use `scripts/toml2json.py` to convert an existing TOML config for a single fan.
+
+### Status Endpoint
+
+The ESP32 serves a JSON status page for debugging:
+```bash
+curl http://ventilation.local:8090/status
+```
+
 ## Deployment
 
 The daemon runs as a user systemd service. `make deploy` installs the systemd unit (templated with the repo path) — config stays in the repo directory.

@@ -68,6 +68,11 @@ make restart   # systemctl restart
 | `daemon.py` | Event-driven main loop, orchestration |
 | `__main__.py` | CLI entry point |
 | `shelly-scripts/cover-switch-override.js` | Standalone Shelly script — same decision logic, runs on-device |
+| `firmware/` | ESP32 standalone controller (M5Stack AtomS3R) — full daemon port for apartments without a server |
+| `firmware/src/fan_logic.cpp` | C++ port of `fan.py` decision logic (CO2 only, no humidity) |
+| `firmware/src/tuya_client.cpp` | Tuya protocol 3.5 client (TCP + AES-GCM via Rhys Weatherley Crypto lib) |
+| `firmware/src/shelly_client.cpp` | Shelly HTTP API client (cover control + device config + script removal) |
+| `firmware/src/display.cpp` | 128x128 IPS display — CO2 readout, fan status, live override countdown |
 
 ## Conventions
 
@@ -79,3 +84,4 @@ make restart   # systemctl restart
 - Shelly cover input isolation: use `in_mode: "detached"` + `in_locked: true` in **separate** `Cover.SetConfig` calls (firmware ignores `in_locked` when sent with `in_mode`)
 - Wall toggle switches require Shelly input type `"switch"` (not `"button"`) to generate `"toggle"` events
 - Shelly webhook URL template variables use `${token}` syntax (e.g. `${ev.rh}` for humidity). `$variable` shorthand (e.g. `$humidity`) does NOT work — it gets sent literally
+- Firmware `FanSpeed` enum uses `SPEED_OFF`, `SPEED_LOW`, `SPEED_HIGH` — Arduino defines `LOW`/`HIGH` as macros, so bare names cause compilation errors

@@ -1,0 +1,28 @@
+{
+  "wifi_ssid": "MyNetwork",
+  "wifi_password": "secret",
+  "timezone": "CET-1CEST,M3.5.0,M10.5.0/3",
+  "poll_interval_seconds": 30,
+  "reconciliation_interval_seconds": 60,
+  "manual_override_minutes": 10,
+  "webhook_port": 8090,
+  "thresholds": {
+    "co2_low": 800,
+    "co2_high": 1200,
+    "co2_hysteresis": 50
+  },
+  "shelly_host": "192.168.1.120",
+  "switch_inputs": [0],
+  "co2_sensor": {
+    "device_id": "your_device_id",
+    "ip": "192.168.1.160",
+    "local_key": "your_local_key"
+  },
+  "schedule": {
+    "start_hour": 22,
+    "end_hour": 7,
+    "run_minutes": 0,
+    "speed": "low",
+    "max_speed": "low"
+  }
+}
