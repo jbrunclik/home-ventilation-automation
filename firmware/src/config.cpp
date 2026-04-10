@@ -87,3 +87,4 @@ bool loadConfig(Config& config) {
 
     return true;
 }
+

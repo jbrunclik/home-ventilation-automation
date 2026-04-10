@@ -6,6 +6,7 @@
 #include "config.h"
 #include "display.h"
 #include "fan_logic.h"
+#include "history.h"
 #include "shelly_client.h"
 #include "tuya_client.h"
 #include "webhook_server.h"
@@ -14,10 +15,17 @@ static Config config;
 static FanState fan_state;
 static TuyaReading last_reading;
 static WebhookState webhook_state;
+static History history;
 
 static unsigned long last_sensor_poll = 0;
 static unsigned long last_command_time = 0;
+static unsigned long last_history_record = 0;
 static bool first_loop = true;
+
+// Button state for M5Stack physical button
+static unsigned long btn_press_start = 0;
+static bool btn_was_pressed = false;
+static bool btn_long_fired = false;
 
 static void connectWiFi() {
     Serial.printf("Connecting to %s", config.wifi_ssid);
@@ -152,7 +160,7 @@ void setup() {
 
     // Start webhook server
     webhookServerSetup(config.webhook_port, &webhook_state,
-                       &fan_state, &last_reading, &config);
+                       &fan_state, &last_reading, &history, &config);
 
     Serial.println("Ready");
 }
@@ -163,6 +171,36 @@ void loop() {
     webhookServerLoop();
 
     unsigned long now = millis();
+
+    // Physical button handling
+    // Short press: OFF→ON, ON→off with cooldown
+    // Long press (3s): ON→off immediately
+    bool btn_down = M5.BtnA.isPressed();
+    if (btn_down && !btn_was_pressed) {
+        btn_press_start = now;
+        btn_long_fired = false;
+    }
+    if (btn_down && !btn_long_fired && (now - btn_press_start) >= 3000) {
+        // Long press threshold reached
+        if (fan_state.current_speed != FanSpeed::SPEED_OFF || fan_state.override_until_ms != 0) {
+            webhook_state.pending_action = PendingAction::OFF_IMMEDIATE;
+            webhook_state.reevaluate = true;
+            Serial.println("Button: long press → off immediate");
+        }
+        btn_long_fired = true;
+    }
+    if (!btn_down && btn_was_pressed && !btn_long_fired) {
+        // Short press release
+        if (fan_state.current_speed == FanSpeed::SPEED_OFF && fan_state.override_until_ms == 0) {
+            webhook_state.pending_action = PendingAction::TURN_ON;
+            Serial.println("Button: short press → turn on");
+        } else {
+            webhook_state.pending_action = PendingAction::OFF_COOLDOWN;
+            Serial.println("Button: short press → off with cooldown");
+        }
+        webhook_state.reevaluate = true;
+    }
+    btn_was_pressed = btn_down;
 
     // Sensor poll
     bool sensor_updated = false;
@@ -181,6 +219,25 @@ void loop() {
     // Reconciliation check
     unsigned long reconciliation_ms = (unsigned long)config.reconciliation_interval_seconds * 1000UL;
     bool reconciliation_due = (now - last_command_time) >= reconciliation_ms;
+
+    // Apply pending action from button or web control
+    if (webhook_state.pending_action != PendingAction::NONE) {
+        switch (webhook_state.pending_action) {
+            case PendingAction::TURN_ON:
+                // 24h override — effectively "on until manually turned off"
+                fan_state.override_until_ms = now + 24UL * 3600UL * 1000UL;
+                break;
+            case PendingAction::OFF_COOLDOWN:
+                fan_state.override_until_ms =
+                    now + (unsigned long)config.manual_override_minutes * 60UL * 1000UL;
+                break;
+            case PendingAction::OFF_IMMEDIATE:
+                fan_state.override_until_ms = 0;
+                break;
+            default: break;
+        }
+        webhook_state.pending_action = PendingAction::NONE;
+    }
 
     // Evaluate decision logic
     if (first_loop || sensor_updated || webhook_state.reevaluate || reconciliation_due) {
@@ -226,6 +283,14 @@ void loop() {
         fan_state = result.new_state;
         webhook_state.reevaluate = false;
         first_loop = false;
+    }
+
+    // Record history every HISTORY_INTERVAL_S seconds
+    if (last_reading.valid &&
+        (last_history_record == 0 ||
+         (now - last_history_record) >= (unsigned long)HISTORY_INTERVAL_S * 1000UL)) {
+        history.record(last_reading, fan_state.current_speed, now / 1000UL);
+        last_history_record = now;
     }
 
     // Update display

@@ -44,3 +44,4 @@ struct Config {
 
 // Load config from /config.json on LittleFS. Returns true on success.
 bool loadConfig(Config& config);
+

@@ -1,18 +1,4 @@
-#include "webhook_server.h"
-
-#include <ArduinoJson.h>
-#include <WebServer.h>
-#include <WiFi.h>
-
-static WebServer* server = nullptr;
-static WebhookState* g_state = nullptr;
-static const FanState* g_fan_state = nullptr;
-static const TuyaReading* g_reading = nullptr;
-static const History* g_history = nullptr;
-static const Config* g_config = nullptr;
-
-// clang-format off
-static const char HTML_PAGE[] PROGMEM = R"rawhtml(<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -38,6 +24,7 @@ body{background:#111;color:#eee;font-family:sans-serif;min-height:100vh}
 .view{display:none}.view.active{display:block}
 .card{background:#1e1e1e;border-radius:12px;padding:16px;margin-bottom:14px}
 .card h2{font-size:.75rem;color:#555;text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px}
+/* Dashboard */
 .co2{font-size:3.2rem;font-weight:700;text-align:center;line-height:1}
 .co2-unit{text-align:center;color:#444;font-size:.8rem;margin:.4rem 0 1rem}
 .g{color:#4caf50}.y{color:#ffc107}.r{color:#f44336}.x{color:#444}
@@ -50,12 +37,14 @@ body{background:#111;color:#eee;font-family:sans-serif;min-height:100vh}
 .fan-low{background:#152240;color:#5599ee}
 .fan-high{background:#301515;color:#ee5555}
 .cooldown{text-align:center;color:#ffc107;font-size:.88rem;min-height:1.4em}
+/* Controls */
 .btns{display:flex;flex-direction:column;gap:10px}
 .btn{padding:15px;border:none;border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;transition:filter .1s}
 .btn:active{filter:brightness(.7)}
 .btn-on{background:#2e7d32;color:#fff}
 .btn-cd{background:#1565c0;color:#fff}
 .btn-off{background:#b71c1c;color:#fff}
+/* History */
 .mtabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 .mtab{padding:6px 12px;border:1px solid #333;border-radius:6px;background:none;color:#888;font-size:.8rem;cursor:pointer;transition:.15s}
 .mtab.active{background:#5599ee22;border-color:#5599ee;color:#5599ee}
@@ -64,6 +53,7 @@ canvas{display:block;width:100%;border-radius:8px}
 .stat{background:#272727;border-radius:8px;padding:8px;text-align:center}
 .stat-val{font-size:1rem;font-weight:600}
 .stat-lbl{font-size:.65rem;color:#555;margin-top:2px}
+/* Misc */
 .sbar{display:flex;justify-content:space-between;font-size:.7rem;color:#3a3a3a;margin-top:4px}
 .err{background:#2a1010;border:1px solid #7b1c1c;border-radius:8px;padding:10px;color:#ef9a9a;text-align:center;margin-bottom:12px;display:none;font-size:.88rem}
 .hint{color:#444;font-size:.8rem;text-align:center;padding:20px 0}
@@ -84,6 +74,8 @@ canvas{display:block;width:100%;border-radius:8px}
 </nav>
 <div class="content">
   <div id="err" class="err">Cannot reach device</div>
+
+  <!-- DASHBOARD -->
   <div id="view-dashboard" class="view active">
     <div class="card">
       <h2>Air Quality</h2>
@@ -103,6 +95,8 @@ canvas{display:block;width:100%;border-radius:8px}
     </div>
     <div class="sbar"><span id="up">--</span><span id="ts">---</span></div>
   </div>
+
+  <!-- CONTROLS -->
   <div id="view-controls" class="view">
     <div class="card">
       <h2>Manual Control</h2>
@@ -113,6 +107,8 @@ canvas{display:block;width:100%;border-radius:8px}
       </div>
     </div>
   </div>
+
+  <!-- HISTORY -->
   <div id="view-history" class="view">
     <div class="card">
       <h2>Long-term trends <span style="font-weight:400;color:#444;text-transform:none;letter-spacing:0">&#8212; last 12 h</span></h2>
@@ -134,20 +130,25 @@ canvas{display:block;width:100%;border-radius:8px}
       <h2>Fan activity</h2>
       <canvas id="fan-chart" height="36"></canvas>
     </div>
-    <div id="hist-hint" class="hint" style="display:none">Collecting data &#8212; samples every 5 min</div>
+    <div id="hist-hint" class="hint" style="display:none">Collecting data — samples every 5 min</div>
   </div>
 </div>
+
 <script>
+// ── Drawer ───────────────────────────────────────────────────────────────
 function toggleDrawer(){const o=document.getElementById('drawer').classList.toggle('open');document.getElementById('hbtn').classList.toggle('open',o);document.getElementById('overlay').classList.toggle('show',o);}
 function closeDrawer(){document.getElementById('drawer').classList.remove('open');document.getElementById('hbtn').classList.remove('open');document.getElementById('overlay').classList.remove('show');}
 function nav(id,el){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+id).classList.add('active');
   document.querySelectorAll('.drawer a').forEach(a=>a.classList.remove('active'));
-  el.classList.add('active');closeDrawer();
-  if(id==='history')refreshHistory();
+  el.classList.add('active');
+  closeDrawer();
+  if(id==='history') refreshHistory();
   return false;
 }
+
+// ── Status polling ───────────────────────────────────────────────────────
 let ok=false;
 async function poll(){
   try{
@@ -173,13 +174,30 @@ async function poll(){
     document.getElementById('ts').textContent=new Date().toLocaleTimeString();
   }catch(e){if(ok){document.getElementById('err').style.display='block';ok=false;}}
 }
+
+// ── Controls ─────────────────────────────────────────────────────────────
 async function ctrl(action){
   try{await fetch('/api/control?action='+action,{method:'POST',signal:AbortSignal.timeout(3000)});setTimeout(poll,300);}
   catch(e){document.getElementById('err').style.display='block';}
 }
-const METRICS={co2:{key:'co2',color:'#5599ee'},temp:{key:'temp',color:'#ff8c42'},hum:{key:'hum',color:'#42d7ff'},pm25:{key:'pm25',color:'#bb88ff'}};
-let activeMetric='co2',histData=[];
-function selMetric(k,el){activeMetric=k;document.querySelectorAll('.mtab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderCharts();}
+
+// ── History / Chart ───────────────────────────────────────────────────────
+const METRICS={
+  co2: {key:'co2', unit:'ppm',  color:'#5599ee', label:'CO\u2082'},
+  temp:{key:'temp',unit:'\u00b0C',color:'#ff8c42',label:'Temp'},
+  hum: {key:'hum', unit:'%',   color:'#42d7ff', label:'Humidity'},
+  pm25:{key:'pm25',unit:'\u03bcg/m\u00b3',color:'#bb88ff',label:'PM2.5'},
+};
+let activeMetric='co2';
+let histData=[];
+
+function selMetric(k,el){
+  activeMetric=k;
+  document.querySelectorAll('.mtab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderCharts();
+}
+
 async function refreshHistory(){
   try{
     const r=await fetch('/api/history',{signal:AbortSignal.timeout(5000)});
@@ -190,190 +208,106 @@ async function refreshHistory(){
     renderCharts();
   }catch(e){}
 }
+
 function renderCharts(){
   const m=METRICS[activeMetric];
   const vals=histData.map(e=>e[m.key]).filter(v=>v!=null&&v>=0);
+
+  // Stats
   if(vals.length){
     const mn=Math.min(...vals),mx=Math.max(...vals),avg=vals.reduce((a,b)=>a+b,0)/vals.length;
     document.getElementById('s-cur').textContent=vals[vals.length-1].toFixed(1);
     document.getElementById('s-min').textContent=mn.toFixed(1);
     document.getElementById('s-avg').textContent=avg.toFixed(1);
     document.getElementById('s-max').textContent=mx.toFixed(1);
-  }else['s-cur','s-min','s-avg','s-max'].forEach(id=>document.getElementById(id).textContent='--');
-  drawLineChart(document.getElementById('chart'),histData,m);
-  drawFanChart(document.getElementById('fan-chart'),histData);
+  } else {
+    ['s-cur','s-min','s-avg','s-max'].forEach(id=>document.getElementById(id).textContent='--');
+  }
+
+  drawLineChart(document.getElementById('chart'), histData, m);
+  drawFanChart(document.getElementById('fan-chart'), histData);
 }
-function drawLineChart(canvas,data,m){
-  const W=canvas.offsetWidth||320,H=160;
-  canvas.width=W;canvas.height=H;
+
+function drawLineChart(canvas, data, m){
+  const W=canvas.offsetWidth||320, H=160;
+  canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext('2d');
   const PL=38,PR=8,PT=8,PB=22,IW=W-PL-PR,IH=H-PT-PB;
-  ctx.fillStyle='#181818';ctx.fillRect(0,0,W,H);
+
+  ctx.fillStyle='#181818'; ctx.fillRect(0,0,W,H);
+
   const vals=data.map(e=>e[m.key]).filter(v=>v!=null&&v>=0);
   if(vals.length<2){
     ctx.fillStyle='#333';ctx.font='12px sans-serif';ctx.textAlign='center';
-    ctx.fillText(vals.length===1?'1 sample \u2014 need more':'No data yet',W/2,H/2);return;
+    ctx.fillText(vals.length===1?'1 sample — need more data':'No data yet',W/2,H/2);
+    return;
   }
+
   let mn=Math.min(...vals),mx=Math.max(...vals);
-  const pad=(mx-mn)*0.08||1;mn-=pad;mx+=pad;const rng=mx-mn;
+  const pad=(mx-mn)*0.08||1; mn-=pad; mx+=pad;
+  const rng=mx-mn;
   const tx=i=>PL+(i/(data.length-1))*IW;
   const ty=v=>PT+(1-(v-mn)/rng)*IH;
-  ctx.strokeStyle='#252525';ctx.lineWidth=1;
-  ctx.fillStyle='#444';ctx.font='9px sans-serif';ctx.textAlign='right';
+
+  // Grid lines + Y labels
+  ctx.strokeStyle='#252525'; ctx.lineWidth=1;
+  ctx.fillStyle='#444'; ctx.font='9px sans-serif'; ctx.textAlign='right';
   for(let g=0;g<=4;g++){
     const y=PT+(g/4)*IH;
     ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(W-PR,y);ctx.stroke();
     ctx.fillText((mx-(g/4)*rng).toFixed(0),PL-3,y+3);
   }
+
+  // Gradient fill
   const grad=ctx.createLinearGradient(0,PT,0,PT+IH);
-  grad.addColorStop(0,m.color+'55');grad.addColorStop(1,m.color+'08');
-  ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(tx(0),PT+IH);
-  data.forEach((e,i)=>{const v=e[m.key];if(v!=null&&v>=0)ctx.lineTo(tx(i),ty(v));});
-  ctx.lineTo(tx(data.length-1),PT+IH);ctx.closePath();ctx.fill();
-  ctx.strokeStyle=m.color;ctx.lineWidth=1.5;ctx.lineJoin='round';ctx.beginPath();
+  grad.addColorStop(0,m.color+'55'); grad.addColorStop(1,m.color+'08');
+  ctx.fillStyle=grad;
+  ctx.beginPath();
+  ctx.moveTo(tx(0),PT+IH);
+  data.forEach((e,i)=>{const v=e[m.key];if(v==null||v<0)return;ctx.lineTo(tx(i),ty(v));});
+  ctx.lineTo(tx(data.length-1),PT+IH);
+  ctx.closePath(); ctx.fill();
+
+  // Line
+  ctx.strokeStyle=m.color; ctx.lineWidth=1.5; ctx.lineJoin='round';
+  ctx.beginPath();
   let first=true;
-  data.forEach((e,i)=>{const v=e[m.key];if(v==null||v<0){first=true;return;}first?ctx.moveTo(tx(i),ty(v)):ctx.lineTo(tx(i),ty(v));first=false;});
+  data.forEach((e,i)=>{
+    const v=e[m.key];
+    if(v==null||v<0){first=true;return;}
+    first?ctx.moveTo(tx(i),ty(v)):ctx.lineTo(tx(i),ty(v));
+    first=false;
+  });
   ctx.stroke();
-  ctx.fillStyle='#444';ctx.font='9px sans-serif';
+
+  // X axis time labels
+  ctx.fillStyle='#444'; ctx.font='9px sans-serif';
   const lastT=data[data.length-1]?.t||0;
   [0,0.5,1].forEach(f=>{
     const i=Math.round(f*(data.length-1));
     const dt=lastT-data[i].t;
-    const lbl=dt<60?'now':dt<3600?'-'+Math.round(dt/60)+'m':'-'+Math.round(dt/360)/10+'h';
+    const lbl=dt<60?'now':dt<3600?'-'+Math.round(dt/60)+'m':'-'+Math.round(dt/3600*10)/10+'h';
     ctx.textAlign=f===0?'left':f===1?'right':'center';
     ctx.fillText(lbl,tx(i),H-5);
   });
 }
-function drawFanChart(canvas,data){
-  const W=canvas.offsetWidth||320,H=36;
-  canvas.width=W;canvas.height=H;
+
+function drawFanChart(canvas, data){
+  const W=canvas.offsetWidth||320, H=36;
+  canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext('2d');
-  ctx.fillStyle='#181818';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#181818'; ctx.fillRect(0,0,W,H);
   if(!data.length)return;
   const bw=W/data.length;
-  data.forEach((e,i)=>{if(e.fan){ctx.fillStyle='#ee555566';ctx.fillRect(i*bw,4,Math.max(bw,1),H-8);}});
-  ctx.fillStyle='#444';ctx.font='9px sans-serif';ctx.textAlign='left';ctx.fillText('fan on',4,H-6);
+  data.forEach((e,i)=>{
+    if(e.fan){ctx.fillStyle='#ee555555';ctx.fillRect(i*bw,4,Math.max(bw,1),H-8);}
+  });
+  // label
+  ctx.fillStyle='#444'; ctx.font='9px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('fan on',4,H-6);
 }
+
 poll();setInterval(poll,2000);
 </script>
 </body>
-</html>)rawhtml";
-// clang-format on
-
-static void handleRoot() {
-    server->send_P(200, "text/html", HTML_PAGE);
-}
-
-static void handleControl() {
-    if (!server->hasArg("action")) {
-        server->send(400, "text/plain", "Missing action");
-        return;
-    }
-    String action = server->arg("action");
-    if (action == "on") {
-        g_state->pending_action = PendingAction::TURN_ON;
-    } else if (action == "off_cooldown") {
-        g_state->pending_action = PendingAction::OFF_COOLDOWN;
-    } else if (action == "off_immediate") {
-        g_state->pending_action = PendingAction::OFF_IMMEDIATE;
-    } else {
-        server->send(400, "text/plain", "Unknown action");
-        return;
-    }
-    g_state->reevaluate = true;
-    Serial.printf("Control: action=%s\n", action.c_str());
-    server->send(200, "text/plain", "OK");
-}
-
-static void handleWebhook() {
-    // Switch event: ?input_id=N&state=on|off
-    if (server->hasArg("input_id") && server->hasArg("state")) {
-        int input_id = server->arg("input_id").toInt();
-        bool on = server->arg("state").equalsIgnoreCase("on");
-
-        if (input_id >= 0 && input_id < MAX_SWITCH_INPUTS) {
-            g_state->switch_states[input_id] = on;
-            g_state->reevaluate = true;
-            Serial.printf("Webhook: switch input %d → %s\n", input_id, on ? "ON" : "OFF");
-        }
-        server->send(200, "text/plain", "OK");
-        return;
-    }
-
-    // Unknown params
-    Serial.printf("Webhook: unrecognized params: %s\n", server->uri().c_str());
-    server->send(200, "text/plain", "OK");
-}
-
-static void handleStatus() {
-    JsonDocument doc;
-    doc["uptime_seconds"] = millis() / 1000;
-    doc["wifi_rssi"] = WiFi.RSSI();
-    doc["fan_speed"] = fanSpeedStr(g_fan_state->current_speed);
-
-    if (g_fan_state->override_until_ms != 0) {
-        long remaining = (long)(g_fan_state->override_until_ms - millis());
-        doc["override_remaining_seconds"] = remaining > 0 ? remaining / 1000 : 0;
-    }
-
-    if (g_reading->valid) {
-        doc["co2_ppm"] = g_reading->co2;
-        if (g_reading->temperature >= 0) doc["temperature"] = g_reading->temperature;
-        if (g_reading->humidity >= 0) doc["humidity"] = g_reading->humidity;
-        if (g_reading->pm25 >= 0) doc["pm25"] = g_reading->pm25;
-    }
-
-    String json;
-    serializeJsonPretty(doc, json);
-    server->send(200, "application/json", json);
-}
-
-
-static void handleHistory() {
-    // Build JSON manually to avoid large ArduinoJson allocation
-    String json;
-    json.reserve(g_history->size() * 68 + 64);
-    json += "{\"interval_s\":";
-    json += HISTORY_INTERVAL_S;
-    json += ",\"count\":";
-    json += g_history->size();
-    json += ",\"entries\":[";
-    for (int i = 0; i < g_history->size(); i++) {
-        const HistoryEntry& e = g_history->get(i);
-        if (i > 0) json += ',';
-        json += "{\"t\":";
-        json += e.uptime_s;
-        if (e.co2 >= 0) { json += ",\"co2\":"; json += e.co2; }
-        if (e.temperature >= 0) { json += ",\"temp\":"; json += e.temperature; }
-        if (e.humidity >= 0) { json += ",\"hum\":"; json += e.humidity; }
-        if (e.pm25 >= 0) { json += ",\"pm25\":"; json += e.pm25; }
-        json += ",\"fan\":";
-        json += e.fan_on ? "true" : "false";
-        json += '}';
-    }
-    json += "]}";
-    server->send(200, "application/json", json);
-}
-
-void webhookServerSetup(int port, WebhookState* state,
-                        const FanState* fan_state, const TuyaReading* reading,
-                        const History* history, const Config* config) {
-    g_state = state;
-    g_fan_state = fan_state;
-    g_reading = reading;
-    g_history = history;
-    g_config = config;
-
-    server = new WebServer(port);
-    server->on("/", handleRoot);
-    server->on("/api/control", HTTP_POST, handleControl);
-    server->on("/api/history", handleHistory);
-    server->on("/webhook/shelly", handleWebhook);
-    server->on("/status", handleStatus);
-    server->begin();
-    Serial.printf("Webhook server started on port %d\n", port);
-}
-
-void webhookServerLoop() {
-    if (server) server->handleClient();
-}
+</html>
