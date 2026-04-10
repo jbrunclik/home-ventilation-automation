@@ -48,10 +48,10 @@ def get_history() -> dict:
         temp = round(22.0 + 2.0 * math.sin(phase * 0.4), 1)
         hum = round(54 + 12 * math.sin(phase * 0.6 + 1), 1)
         pm25 = round(7 + 5 * abs(math.sin(phase * 0.8)), 1)
-        fan_on = co2 > 1100
+        fan_speed = 2 if co2 > 1100 else 1 if co2 > 900 else 0
         entries.append({
             "t": t, "co2": co2, "temp": temp,
-            "hum": hum, "pm25": pm25, "fan": fan_on,
+            "hum": hum, "pm25": pm25, "fan": fan_speed,
         })
     return {"interval_s": HISTORY_INTERVAL_S, "count": len(entries), "entries": entries}
 

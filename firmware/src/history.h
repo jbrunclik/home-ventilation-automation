@@ -12,7 +12,7 @@ struct HistoryEntry {
     float temperature = -1;
     float humidity = -1;
     float pm25 = -1;
-    bool fan_on = false;
+    uint8_t fan_speed = 0;  // 0=off, 1=low, 2=high
 };
 
 class History {

@@ -50,7 +50,7 @@ canvas{display:block;width:100%;border-radius:8px}
 .stat{background:#313244;border-radius:8px;padding:8px;text-align:center}
 .stat-val{font-size:1rem;font-weight:600}
 .stat-lbl{font-size:.65rem;color:#585b70;margin-top:2px}
-.sbar{display:flex;justify-content:space-between;font-size:.7rem;color:#45475a;margin-top:4px}
+.sbar{display:flex;justify-content:space-between;font-size:.7rem;color:#45475a;margin-top:12px}
 .err{background:#302030;border:1px solid #7b3050;border-radius:8px;padding:10px;color:#f38ba8;text-align:center;margin-bottom:12px;display:none;font-size:.88rem}
 .hint{color:#585b70;font-size:.8rem;text-align:center;padding:20px 0}
 </style>
@@ -75,8 +75,8 @@ canvas{display:block;width:100%;border-radius:8px}
     <div id="cd" class="cooldown"></div>
     <div id="sw-warn" class="sw-warn" style="display:none">Wall switch active &#8212; manual control disabled</div>
     <button class="btn btn-on" id="ctrl-btn" onclick="toggle()">Turn On</button>
+    <div class="sbar"><span id="up">--</span><span id="ts">---</span></div>
   </div>
-  <div class="sbar"><span id="up">--</span><span id="ts">---</span></div>
   <div class="card">
     <h2>Long-term trends <span style="font-weight:400;color:#45475a;text-transform:none;letter-spacing:0">&#8212; last 12 h</span></h2>
     <div class="mtabs">
@@ -212,8 +212,9 @@ function drawFanChart(canvas,data){
   ctx.fillStyle='#11111b';ctx.fillRect(0,0,W,H);
   if(!data.length)return;
   const bw=W/data.length;
-  data.forEach((e,i)=>{if(e.fan){ctx.fillStyle='#f38ba855';ctx.fillRect(i*bw,4,Math.max(bw,1),H-8);}});
-  ctx.fillStyle='#585b70';ctx.font='9px sans-serif';ctx.textAlign='left';ctx.fillText('fan on',4,H-6);
+  data.forEach((e,i)=>{if(e.fan===2){ctx.fillStyle='#f38ba855';ctx.fillRect(i*bw,4,Math.max(bw,1),H-8);}else if(e.fan===1){ctx.fillStyle='#89b4fa55';ctx.fillRect(i*bw,4,Math.max(bw,1),H-8);}});
+  ctx.fillStyle='#585b70';ctx.font='9px sans-serif';ctx.textAlign='left';ctx.fillText('low',4,H-6);
+  ctx.fillStyle='#585b70';ctx.textAlign='right';ctx.fillText('high',W-4,H-6);
 }
 poll();setInterval(poll,2000);
 refreshHistory();setInterval(refreshHistory,60000);
@@ -314,7 +315,7 @@ static void handleHistory() {
         if (e.humidity >= 0) { json += ",\"hum\":"; json += e.humidity; }
         if (e.pm25 >= 0) { json += ",\"pm25\":"; json += e.pm25; }
         json += ",\"fan\":";
-        json += e.fan_on ? "true" : "false";
+        json += String(e.fan_speed);
         json += '}';
     }
     json += "]}";

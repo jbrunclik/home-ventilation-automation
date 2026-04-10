@@ -7,7 +7,7 @@ void History::record(const TuyaReading& reading, FanSpeed speed, unsigned long u
     entry.temperature = reading.temperature;
     entry.humidity = reading.humidity;
     entry.pm25 = reading.pm25;
-    entry.fan_on = (speed != FanSpeed::SPEED_OFF);
+    entry.fan_speed = (speed == FanSpeed::SPEED_HIGH) ? 2 : (speed == FanSpeed::SPEED_LOW) ? 1 : 0;
     _buf[_head] = entry;
     _head = (_head + 1) % HISTORY_SIZE;
     if (_count < HISTORY_SIZE) _count++;
