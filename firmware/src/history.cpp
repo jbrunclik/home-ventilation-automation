@@ -1,8 +1,14 @@
 #include "history.h"
 
 void History::record(const TuyaReading& reading, FanSpeed speed, unsigned long uptime_s) {
-    _buf[_head] = {uptime_s, reading.co2, reading.temperature,
-                   reading.humidity, reading.pm25, speed != FanSpeed::SPEED_OFF};
+    HistoryEntry entry;
+    entry.uptime_s = uptime_s;
+    entry.co2 = reading.co2;
+    entry.temperature = reading.temperature;
+    entry.humidity = reading.humidity;
+    entry.pm25 = reading.pm25;
+    entry.fan_on = (speed != FanSpeed::SPEED_OFF);
+    _buf[_head] = entry;
     _head = (_head + 1) % HISTORY_SIZE;
     if (_count < HISTORY_SIZE) _count++;
 }
