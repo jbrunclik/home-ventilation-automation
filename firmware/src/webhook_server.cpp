@@ -20,46 +20,46 @@ static const char HTML_PAGE[] PROGMEM = R"rawhtml(<!DOCTYPE html>
 <title>Ventilation</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#1e1e2e;color:#cdd6f4;font-family:sans-serif;min-height:100vh}
-.content{padding:16px;max-width:480px;margin:0 auto}
-.card{background:#181825;border-radius:12px;padding:16px;margin-bottom:14px}
-.card h2{font-size:.75rem;color:#585b70;text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px}
-.co2{font-size:3.2rem;font-weight:700;text-align:center;line-height:1}
-.co2-unit{text-align:center;color:#45475a;font-size:.8rem;margin:.4rem 0 1rem}
+body{background:#1e1e2e;color:#cdd6f4;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+.content{padding:20px 16px;max-width:480px;margin:0 auto}
+.card{background:#181825;border-radius:16px;padding:20px;margin-bottom:16px}
+.card h2{font-size:.8rem;color:#6c7086;font-weight:600;margin-bottom:16px}
+.co2{font-size:3.6rem;font-weight:700;text-align:center;line-height:1;letter-spacing:-.02em}
+.co2-unit{text-align:center;color:#45475a;font-size:.8rem;margin:.5rem 0 1.2rem}
 .g{color:#a6e3a1}.y{color:#f9e2af}.r{color:#f38ba8}.x{color:#585b70}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.tile{background:#313244;border-radius:8px;padding:10px 12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:#313244;border-radius:12px;padding:12px 14px}
 .tile-val{font-size:1.2rem;font-weight:600}
-.tile-lbl{font-size:.68rem;color:#585b70;margin-top:3px}
-.fan{text-align:center;padding:13px;border-radius:8px;font-size:.95rem;font-weight:700;letter-spacing:.05em;margin-bottom:6px}
+.tile-lbl{font-size:.68rem;color:#6c7086;margin-top:4px}
+.fan{text-align:center;padding:14px;border-radius:12px;font-size:.95rem;font-weight:700;letter-spacing:.05em;margin-bottom:8px}
 .fan-off{background:#313244;color:#585b70}
-.fan-low{background:#89b4fa18;color:#89b4fa}
-.fan-high{background:#f38ba818;color:#f38ba8}
-.cooldown{text-align:center;color:#f9e2af;font-size:.88rem;min-height:1.4em}
-.btn{padding:15px;border:none;border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;transition:filter .1s}
+.fan-low{background:#89b4fa15;color:#89b4fa}
+.fan-high{background:#f38ba815;color:#f38ba8}
+.cooldown{text-align:center;color:#f9e2af;font-size:.85rem;min-height:1.4em}
+.btn{padding:16px;border:none;border-radius:14px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;transition:opacity .15s,filter .15s}
 .btn:active{filter:brightness(.7)}
 .btn-on{background:#2b5a2e;color:#a6e3a1}
 .btn-off{background:#5a2035;color:#f38ba8}
-.btn:disabled{opacity:.35;cursor:not-allowed;filter:none}
-.sw-warn{text-align:center;color:#f9e2af;font-size:.85rem;margin-bottom:10px}
-.mtabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
-.mtab{padding:6px 12px;border:1px solid #313244;border-radius:6px;background:none;color:#6c7086;font-size:.8rem;cursor:pointer;transition:.15s}
-.mtab.active{background:#89b4fa22;border-color:#89b4fa;color:#89b4fa}
-canvas{display:block;width:100%;border-radius:8px}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
-.stat{background:#313244;border-radius:8px;padding:8px;text-align:center}
+.btn:disabled{opacity:.3;cursor:not-allowed;filter:none}
+.sw-warn{text-align:center;color:#f9e2af;font-size:.82rem;margin-bottom:12px}
+.mtabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.mtab{padding:7px 14px;border:1px solid #313244;border-radius:8px;background:none;color:#6c7086;font-size:.8rem;cursor:pointer;transition:.15s}
+.mtab.active{background:#89b4fa18;border-color:#89b4fa;color:#89b4fa}
+canvas{display:block;width:100%;border-radius:10px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.stat{background:#313244;border-radius:10px;padding:10px;text-align:center}
 .stat-val{font-size:1rem;font-weight:600}
-.stat-lbl{font-size:.65rem;color:#585b70;margin-top:2px}
-.sbar{display:flex;justify-content:space-between;font-size:.7rem;color:#45475a;margin-top:12px}
-.err{background:#302030;border:1px solid #7b3050;border-radius:8px;padding:10px;color:#f38ba8;text-align:center;margin-bottom:12px;display:none;font-size:.88rem}
-.hint{color:#585b70;font-size:.8rem;text-align:center;padding:20px 0}
+.stat-lbl{font-size:.65rem;color:#6c7086;margin-top:3px}
+.sbar{text-align:right;font-size:.7rem;color:#45475a;margin-top:14px}
+.err{background:#302030;border:1px solid #7b3050;border-radius:14px;padding:12px;color:#f38ba8;text-align:center;margin-bottom:16px;display:none;font-size:.85rem}
+.hint{color:#6c7086;font-size:.8rem;text-align:center;padding:20px 0}
 </style>
 </head>
 <body>
 <div class="content">
   <div id="err" class="err">Cannot reach device</div>
   <div class="card">
-    <h2>Air Quality</h2>
+    <h2>Air quality</h2>
     <div id="co2" class="co2 x">---</div>
     <div class="co2-unit">ppm CO&#8322;</div>
     <div class="grid">
@@ -75,10 +75,10 @@ canvas{display:block;width:100%;border-radius:8px}
     <div id="cd" class="cooldown"></div>
     <div id="sw-warn" class="sw-warn" style="display:none">Wall switch active &#8212; manual control disabled</div>
     <button class="btn btn-on" id="ctrl-btn" onclick="toggle()">Turn On</button>
-    <div class="sbar"><span id="up">--</span><span id="ts">---</span></div>
+    <div class="sbar"><span id="ts">---</span></div>
   </div>
   <div class="card">
-    <h2>Long-term trends <span style="font-weight:400;color:#45475a;text-transform:none;letter-spacing:0">&#8212; last 12 h</span></h2>
+    <h2>Trends <span style="font-weight:400;color:#45475a">&#8212; last 12 h</span></h2>
     <div class="mtabs">
       <button class="mtab active" onclick="selMetric('co2',this)">CO&#8322;</button>
       <button class="mtab" onclick="selMetric('temp',this)">Temp</button>
@@ -128,7 +128,6 @@ async function poll(){
     const sw=!!d.switch_active;
     document.getElementById('sw-warn').style.display=sw?'block':'none';
     btn.disabled=sw;
-    if(d.uptime_seconds!=null){const u=d.uptime_seconds;document.getElementById('up').textContent=u<3600?'Up '+Math.floor(u/60)+'m':'Up '+Math.floor(u/3600)+'h '+Math.floor(u%3600/60)+'m';}
     document.getElementById('ts').textContent=new Date().toLocaleTimeString();
   }catch(e){if(ok){document.getElementById('err').style.display='block';ok=false;}}
 }
@@ -206,17 +205,20 @@ function drawLineChart(canvas,data,m){
   });
 }
 function drawFanChart(canvas,data){
-  const W=canvas.offsetWidth||320,H=36;
+  const W=canvas.offsetWidth||320,LH=16,H=36+LH;
   canvas.width=W;canvas.height=H;
   const ctx=canvas.getContext('2d');
   ctx.fillStyle='#11111b';ctx.fillRect(0,0,W,H);
+  ctx.font='9px sans-serif';ctx.textAlign='left';
+  ctx.fillStyle='#89b4fa';ctx.fillRect(4,4,8,8);
+  ctx.fillStyle='#6c7086';ctx.fillText('Low',16,12);
+  ctx.fillStyle='#f38ba8';ctx.fillRect(42,4,8,8);
+  ctx.fillStyle='#6c7086';ctx.fillText('High',54,12);
   if(!data.length)return;
   const bw=W/data.length;
-  data.forEach((e,i)=>{if(e.fan===2){ctx.fillStyle='#f38ba855';ctx.fillRect(i*bw,4,Math.max(bw,1),H-8);}else if(e.fan===1){ctx.fillStyle='#89b4fa55';ctx.fillRect(i*bw,4,Math.max(bw,1),H-8);}});
-  ctx.fillStyle='#585b70';ctx.font='9px sans-serif';ctx.textAlign='left';ctx.fillText('low',4,H-6);
-  ctx.fillStyle='#585b70';ctx.textAlign='right';ctx.fillText('high',W-4,H-6);
+  data.forEach((e,i)=>{if(e.fan===2){ctx.fillStyle='#f38ba855';ctx.fillRect(i*bw,LH+2,Math.max(bw,1),H-LH-4);}else if(e.fan===1){ctx.fillStyle='#89b4fa55';ctx.fillRect(i*bw,LH+2,Math.max(bw,1),H-LH-4);}});
 }
-poll();setInterval(poll,2000);
+poll();setInterval(poll,1000);
 refreshHistory();setInterval(refreshHistory,60000);
 </script>
 </body>
