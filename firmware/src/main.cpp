@@ -181,22 +181,17 @@ void loop() {
         btn_long_fired = false;
     }
     if (btn_down && !btn_long_fired && (now - btn_press_start) >= 3000) {
-        // Long press threshold reached
-        if (fan_state.current_speed != FanSpeed::SPEED_OFF || fan_state.override_until_ms != 0) {
-            webhook_state.pending_action = PendingAction::OFF_IMMEDIATE;
-            webhook_state.reevaluate = true;
-            Serial.println("Button: long press → off immediate");
-        }
+        // Long press — ignored (no action)
         btn_long_fired = true;
     }
     if (!btn_down && btn_was_pressed && !btn_long_fired) {
-        // Short press release
-        if (fan_state.current_speed == FanSpeed::SPEED_OFF && fan_state.override_until_ms == 0) {
-            webhook_state.pending_action = PendingAction::TURN_ON;
-            Serial.println("Button: short press → turn on");
+        // Short press: toggle between cooldown and auto
+        if (fan_state.override_until_ms != 0) {
+            webhook_state.pending_action = PendingAction::OFF_IMMEDIATE;
+            Serial.println("Button: short press → cancel cooldown");
         } else {
             webhook_state.pending_action = PendingAction::OFF_COOLDOWN;
-            Serial.println("Button: short press → off with cooldown");
+            Serial.println("Button: short press → on with cooldown");
         }
         webhook_state.reevaluate = true;
     }
@@ -223,10 +218,6 @@ void loop() {
     // Apply pending action from button or web control
     if (webhook_state.pending_action != PendingAction::NONE) {
         switch (webhook_state.pending_action) {
-            case PendingAction::TURN_ON:
-                // 24h override — effectively "on until manually turned off"
-                fan_state.override_until_ms = now + 24UL * 3600UL * 1000UL;
-                break;
             case PendingAction::OFF_COOLDOWN:
                 fan_state.override_until_ms =
                     now + (unsigned long)config.manual_override_minutes * 60UL * 1000UL;

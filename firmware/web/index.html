@@ -6,150 +6,97 @@
 <title>Ventilation</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#111;color:#eee;font-family:sans-serif;min-height:100vh}
-.topbar{position:fixed;top:0;left:0;right:0;height:52px;background:#1a1a1a;display:flex;align-items:center;padding:0 16px;z-index:100;border-bottom:1px solid #2a2a2a}
-.topbar h1{font-size:1.1rem;font-weight:600;color:#ddd;flex:1;margin-left:12px}
-.hbtn{background:none;border:none;cursor:pointer;padding:6px;display:flex;flex-direction:column;gap:5px}
-.hbtn span{display:block;width:22px;height:2px;background:#ccc;border-radius:2px;transition:.25s}
-.hbtn.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
-.hbtn.open span:nth-child(2){opacity:0}
-.hbtn.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
-.drawer{position:fixed;top:52px;left:0;bottom:0;width:200px;background:#1a1a1a;border-right:1px solid #2a2a2a;transform:translateX(-100%);transition:transform .25s;z-index:90;padding:8px 0;display:flex;flex-direction:column}
-.drawer.open{transform:translateX(0)}
-.drawer a{display:block;padding:14px 20px;color:#bbb;text-decoration:none;font-size:.95rem;border-left:3px solid transparent;transition:.15s}
-.drawer a.active,.drawer a:hover{color:#fff;background:#242424;border-left-color:#5599ee}
-.overlay{display:none;position:fixed;inset:0;top:52px;background:rgba(0,0,0,.5);z-index:80}
-.overlay.show{display:block}
-.content{margin-top:52px;padding:16px;max-width:480px;margin-left:auto;margin-right:auto}
-.view{display:none}.view.active{display:block}
-.card{background:#1e1e1e;border-radius:12px;padding:16px;margin-bottom:14px}
-.card h2{font-size:.75rem;color:#555;text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px}
+body{background:#1e1e2e;color:#cdd6f4;font-family:sans-serif;min-height:100vh}
+.content{padding:16px;max-width:480px;margin:0 auto}
+.card{background:#181825;border-radius:12px;padding:16px;margin-bottom:14px}
+.card h2{font-size:.75rem;color:#585b70;text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px}
 /* Dashboard */
 .co2{font-size:3.2rem;font-weight:700;text-align:center;line-height:1}
-.co2-unit{text-align:center;color:#444;font-size:.8rem;margin:.4rem 0 1rem}
-.g{color:#4caf50}.y{color:#ffc107}.r{color:#f44336}.x{color:#444}
+.co2-unit{text-align:center;color:#45475a;font-size:.8rem;margin:.4rem 0 1rem}
+.g{color:#a6e3a1}.y{color:#f9e2af}.r{color:#f38ba8}.x{color:#585b70}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.tile{background:#272727;border-radius:8px;padding:10px 12px}
+.tile{background:#313244;border-radius:8px;padding:10px 12px}
 .tile-val{font-size:1.2rem;font-weight:600}
-.tile-lbl{font-size:.68rem;color:#555;margin-top:3px}
+.tile-lbl{font-size:.68rem;color:#585b70;margin-top:3px}
 .fan{text-align:center;padding:13px;border-radius:8px;font-size:.95rem;font-weight:700;letter-spacing:.05em;margin-bottom:6px}
-.fan-off{background:#222;color:#555}
-.fan-low{background:#152240;color:#5599ee}
-.fan-high{background:#301515;color:#ee5555}
-.cooldown{text-align:center;color:#ffc107;font-size:.88rem;min-height:1.4em}
+.fan-off{background:#313244;color:#585b70}
+.fan-low{background:#89b4fa18;color:#89b4fa}
+.fan-high{background:#f38ba818;color:#f38ba8}
+.cooldown{text-align:center;color:#f9e2af;font-size:.88rem;min-height:1.4em}
 /* Controls */
-.btns{display:flex;flex-direction:column;gap:10px}
 .btn{padding:15px;border:none;border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;transition:filter .1s}
 .btn:active{filter:brightness(.7)}
-.btn-on{background:#2e7d32;color:#fff}
-.btn-cd{background:#1565c0;color:#fff}
-.btn-off{background:#b71c1c;color:#fff}
+.btn-on{background:#2b5a2e;color:#a6e3a1}
+.btn-off{background:#5a2035;color:#f38ba8}
+.btn:disabled{opacity:.35;cursor:not-allowed;filter:none}
+.sw-warn{text-align:center;color:#f9e2af;font-size:.85rem;margin-bottom:10px}
 /* History */
 .mtabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
-.mtab{padding:6px 12px;border:1px solid #333;border-radius:6px;background:none;color:#888;font-size:.8rem;cursor:pointer;transition:.15s}
-.mtab.active{background:#5599ee22;border-color:#5599ee;color:#5599ee}
+.mtab{padding:6px 12px;border:1px solid #313244;border-radius:6px;background:none;color:#6c7086;font-size:.8rem;cursor:pointer;transition:.15s}
+.mtab.active{background:#89b4fa22;border-color:#89b4fa;color:#89b4fa}
 canvas{display:block;width:100%;border-radius:8px}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
-.stat{background:#272727;border-radius:8px;padding:8px;text-align:center}
+.stat{background:#313244;border-radius:8px;padding:8px;text-align:center}
 .stat-val{font-size:1rem;font-weight:600}
-.stat-lbl{font-size:.65rem;color:#555;margin-top:2px}
+.stat-lbl{font-size:.65rem;color:#585b70;margin-top:2px}
 /* Misc */
-.sbar{display:flex;justify-content:space-between;font-size:.7rem;color:#3a3a3a;margin-top:4px}
-.err{background:#2a1010;border:1px solid #7b1c1c;border-radius:8px;padding:10px;color:#ef9a9a;text-align:center;margin-bottom:12px;display:none;font-size:.88rem}
-.hint{color:#444;font-size:.8rem;text-align:center;padding:20px 0}
+.sbar{display:flex;justify-content:space-between;font-size:.7rem;color:#45475a;margin-top:4px}
+.err{background:#302030;border:1px solid #7b3050;border-radius:8px;padding:10px;color:#f38ba8;text-align:center;margin-bottom:12px;display:none;font-size:.88rem}
+.hint{color:#585b70;font-size:.8rem;text-align:center;padding:20px 0}
 </style>
 </head>
 <body>
-<div class="topbar">
-  <button class="hbtn" id="hbtn" onclick="toggleDrawer()" aria-label="Menu">
-    <span></span><span></span><span></span>
-  </button>
-  <h1>Ventilation</h1>
-</div>
-<div class="overlay" id="overlay" onclick="closeDrawer()"></div>
-<nav class="drawer" id="drawer">
-  <a href="#" class="active" onclick="nav('dashboard',this)">Dashboard</a>
-  <a href="#" onclick="nav('controls',this)">Controls</a>
-  <a href="#" onclick="nav('history',this)">History</a>
-  <a href="https://github.com/jbrunclik" target="_blank" style="margin-top:auto;border-top:1px solid #2a2a2a">github.com/jbrunclik</a>
-  <a href="https://github.com/vbtronic" target="_blank">github.com/vbtronic</a>
-</nav>
 <div class="content">
   <div id="err" class="err">Cannot reach device</div>
 
-  <!-- DASHBOARD -->
-  <div id="view-dashboard" class="view active">
-    <div class="card">
-      <h2>Air Quality</h2>
-      <div id="co2" class="co2 x">---</div>
-      <div class="co2-unit">ppm CO&#8322;</div>
-      <div class="grid">
-        <div class="tile"><div id="temp" class="tile-val">---</div><div class="tile-lbl">Temperature (&#176;C)</div></div>
-        <div class="tile"><div id="hum" class="tile-val">---</div><div class="tile-lbl">Humidity (%)</div></div>
-        <div class="tile"><div id="pm25" class="tile-val">---</div><div class="tile-lbl">PM2.5 (&#181;g/m&#179;)</div></div>
-        <div class="tile"><div id="rssi" class="tile-val">---</div><div class="tile-lbl">WiFi (dBm)</div></div>
-      </div>
+  <!-- AIR QUALITY -->
+  <div class="card">
+    <h2>Air Quality</h2>
+    <div id="co2" class="co2 x">---</div>
+    <div class="co2-unit">ppm CO&#8322;</div>
+    <div class="grid">
+      <div class="tile"><div id="temp" class="tile-val">---</div><div class="tile-lbl">Temperature (&#176;C)</div></div>
+      <div class="tile"><div id="hum" class="tile-val">---</div><div class="tile-lbl">Humidity (%)</div></div>
+      <div class="tile"><div id="pm25" class="tile-val">---</div><div class="tile-lbl">PM2.5 (&#181;g/m&#179;)</div></div>
+      <div class="tile"><div id="rssi" class="tile-val">---</div><div class="tile-lbl">WiFi (dBm)</div></div>
     </div>
-    <div class="card">
-      <h2>Fan</h2>
-      <div id="fan" class="fan fan-off">OFF</div>
-      <div id="cd" class="cooldown"></div>
-    </div>
-    <div class="sbar"><span id="up">--</span><span id="ts">---</span></div>
   </div>
 
-  <!-- CONTROLS -->
-  <div id="view-controls" class="view">
-    <div class="card">
-      <h2>Manual Control</h2>
-      <div class="btns">
-        <button class="btn btn-on" onclick="ctrl('on')">Turn On</button>
-        <button class="btn btn-cd" onclick="ctrl('off_cooldown')">Turn Off (with cooldown)</button>
-        <button class="btn btn-off" onclick="ctrl('off_immediate')">Turn Off Immediately</button>
-      </div>
-    </div>
+  <!-- FAN + CONTROLS -->
+  <div class="card">
+    <h2>Fan</h2>
+    <div id="fan" class="fan fan-off">OFF</div>
+    <div id="cd" class="cooldown"></div>
+    <div id="sw-warn" class="sw-warn" style="display:none">Wall switch active &#8212; manual control disabled</div>
+    <button class="btn btn-on" id="ctrl-btn" onclick="toggle()">Turn On</button>
   </div>
+  <div class="sbar"><span id="up">--</span><span id="ts">---</span></div>
 
   <!-- HISTORY -->
-  <div id="view-history" class="view">
-    <div class="card">
-      <h2>Long-term trends <span style="font-weight:400;color:#444;text-transform:none;letter-spacing:0">&#8212; last 12 h</span></h2>
-      <div class="mtabs">
-        <button class="mtab active" onclick="selMetric('co2',this)">CO&#8322;</button>
-        <button class="mtab" onclick="selMetric('temp',this)">Temp</button>
-        <button class="mtab" onclick="selMetric('hum',this)">Humidity</button>
-        <button class="mtab" onclick="selMetric('pm25',this)">PM2.5</button>
-      </div>
-      <canvas id="chart" height="160"></canvas>
-      <div class="stats">
-        <div class="stat"><div id="s-cur" class="stat-val">--</div><div class="stat-lbl">Current</div></div>
-        <div class="stat"><div id="s-min" class="stat-val">--</div><div class="stat-lbl">Min</div></div>
-        <div class="stat"><div id="s-avg" class="stat-val">--</div><div class="stat-lbl">Avg</div></div>
-        <div class="stat"><div id="s-max" class="stat-val">--</div><div class="stat-lbl">Max</div></div>
-      </div>
+  <div class="card">
+    <h2>Long-term trends <span style="font-weight:400;color:#45475a;text-transform:none;letter-spacing:0">&#8212; last 12 h</span></h2>
+    <div class="mtabs">
+      <button class="mtab active" onclick="selMetric('co2',this)">CO&#8322;</button>
+      <button class="mtab" onclick="selMetric('temp',this)">Temp</button>
+      <button class="mtab" onclick="selMetric('hum',this)">Humidity</button>
+      <button class="mtab" onclick="selMetric('pm25',this)">PM2.5</button>
     </div>
-    <div class="card">
-      <h2>Fan activity</h2>
-      <canvas id="fan-chart" height="36"></canvas>
+    <canvas id="chart" height="160"></canvas>
+    <div class="stats">
+      <div class="stat"><div id="s-cur" class="stat-val">--</div><div class="stat-lbl">Current</div></div>
+      <div class="stat"><div id="s-min" class="stat-val">--</div><div class="stat-lbl">Min</div></div>
+      <div class="stat"><div id="s-avg" class="stat-val">--</div><div class="stat-lbl">Avg</div></div>
+      <div class="stat"><div id="s-max" class="stat-val">--</div><div class="stat-lbl">Max</div></div>
     </div>
-    <div id="hist-hint" class="hint" style="display:none">Collecting data — samples every 5 min</div>
   </div>
+  <div class="card">
+    <h2>Fan activity</h2>
+    <canvas id="fan-chart" height="36"></canvas>
+  </div>
+  <div id="hist-hint" class="hint" style="display:none">Collecting data &#8212; samples every 5 min</div>
 </div>
 
 <script>
-// ── Drawer ───────────────────────────────────────────────────────────────
-function toggleDrawer(){const o=document.getElementById('drawer').classList.toggle('open');document.getElementById('hbtn').classList.toggle('open',o);document.getElementById('overlay').classList.toggle('show',o);}
-function closeDrawer(){document.getElementById('drawer').classList.remove('open');document.getElementById('hbtn').classList.remove('open');document.getElementById('overlay').classList.remove('show');}
-function nav(id,el){
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-'+id).classList.add('active');
-  document.querySelectorAll('.drawer a').forEach(a=>a.classList.remove('active'));
-  el.classList.add('active');
-  closeDrawer();
-  if(id==='history') refreshHistory();
-  return false;
-}
-
 // ── Status polling ───────────────────────────────────────────────────────
 let ok=false;
 async function poll(){
@@ -172,23 +119,34 @@ async function poll(){
     const cd=document.getElementById('cd');
     if(d.override_remaining_seconds>0){const s=d.override_remaining_seconds;cd.textContent='Cooldown: '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
     else cd.textContent='';
+    // Toggle button state based on cooldown
+    inCooldown=d.override_remaining_seconds>0;
+    const btn=document.getElementById('ctrl-btn');
+    btn.textContent=inCooldown?'Cancel Cooldown':'Turn On';
+    btn.className='btn '+(inCooldown?'btn-off':'btn-on');
+    // Disable controls when wall switch is active
+    const sw=!!d.switch_active;
+    document.getElementById('sw-warn').style.display=sw?'block':'none';
+    btn.disabled=sw;
     if(d.uptime_seconds!=null){const u=d.uptime_seconds;document.getElementById('up').textContent=u<3600?'Up '+Math.floor(u/60)+'m':'Up '+Math.floor(u/3600)+'h '+Math.floor(u%3600/60)+'m';}
     document.getElementById('ts').textContent=new Date().toLocaleTimeString();
   }catch(e){if(ok){document.getElementById('err').style.display='block';ok=false;}}
 }
 
 // ── Controls ─────────────────────────────────────────────────────────────
-async function ctrl(action){
+let inCooldown=false;
+async function toggle(){
+  const action=inCooldown?'cancel':'on';
   try{await fetch('/api/control?action='+action,{method:'POST',signal:AbortSignal.timeout(3000)});setTimeout(poll,300);}
   catch(e){document.getElementById('err').style.display='block';}
 }
 
 // ── History / Chart ───────────────────────────────────────────────────────
 const METRICS={
-  co2: {key:'co2', unit:'ppm',  color:'#5599ee', label:'CO\u2082'},
-  temp:{key:'temp',unit:'\u00b0C',color:'#ff8c42',label:'Temp'},
-  hum: {key:'hum', unit:'%',   color:'#42d7ff', label:'Humidity'},
-  pm25:{key:'pm25',unit:'\u03bcg/m\u00b3',color:'#bb88ff',label:'PM2.5'},
+  co2: {key:'co2', unit:'ppm',  color:'#89b4fa', label:'CO\u2082'},
+  temp:{key:'temp',unit:'\u00b0C',color:'#fab387',label:'Temp'},
+  hum: {key:'hum', unit:'%',   color:'#89dceb', label:'Humidity'},
+  pm25:{key:'pm25',unit:'\u03bcg/m\u00b3',color:'#cba6f7',label:'PM2.5'},
 };
 let activeMetric='co2';
 let histData=[];
@@ -236,11 +194,11 @@ function drawLineChart(canvas, data, m){
   const ctx=canvas.getContext('2d');
   const PL=38,PR=8,PT=8,PB=22,IW=W-PL-PR,IH=H-PT-PB;
 
-  ctx.fillStyle='#181818'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#11111b'; ctx.fillRect(0,0,W,H);
 
   const vals=data.map(e=>e[m.key]).filter(v=>v!=null&&v>=0);
   if(vals.length<2){
-    ctx.fillStyle='#333';ctx.font='12px sans-serif';ctx.textAlign='center';
+    ctx.fillStyle='#45475a';ctx.font='12px sans-serif';ctx.textAlign='center';
     ctx.fillText(vals.length===1?'1 sample — need more data':'No data yet',W/2,H/2);
     return;
   }
@@ -252,8 +210,8 @@ function drawLineChart(canvas, data, m){
   const ty=v=>PT+(1-(v-mn)/rng)*IH;
 
   // Grid lines + Y labels
-  ctx.strokeStyle='#252525'; ctx.lineWidth=1;
-  ctx.fillStyle='#444'; ctx.font='9px sans-serif'; ctx.textAlign='right';
+  ctx.strokeStyle='#313244'; ctx.lineWidth=1;
+  ctx.fillStyle='#585b70'; ctx.font='9px sans-serif'; ctx.textAlign='right';
   for(let g=0;g<=4;g++){
     const y=PT+(g/4)*IH;
     ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(W-PR,y);ctx.stroke();
@@ -283,7 +241,7 @@ function drawLineChart(canvas, data, m){
   ctx.stroke();
 
   // X axis time labels
-  ctx.fillStyle='#444'; ctx.font='9px sans-serif';
+  ctx.fillStyle='#585b70'; ctx.font='9px sans-serif';
   const lastT=data[data.length-1]?.t||0;
   [0,0.5,1].forEach(f=>{
     const i=Math.round(f*(data.length-1));
@@ -298,18 +256,19 @@ function drawFanChart(canvas, data){
   const W=canvas.offsetWidth||320, H=36;
   canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext('2d');
-  ctx.fillStyle='#181818'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#11111b'; ctx.fillRect(0,0,W,H);
   if(!data.length)return;
   const bw=W/data.length;
   data.forEach((e,i)=>{
-    if(e.fan){ctx.fillStyle='#ee555555';ctx.fillRect(i*bw,4,Math.max(bw,1),H-8);}
+    if(e.fan){ctx.fillStyle='#f38ba855';ctx.fillRect(i*bw,4,Math.max(bw,1),H-8);}
   });
   // label
-  ctx.fillStyle='#444'; ctx.font='9px sans-serif'; ctx.textAlign='left';
+  ctx.fillStyle='#585b70'; ctx.font='9px sans-serif'; ctx.textAlign='left';
   ctx.fillText('fan on',4,H-6);
 }
 
 poll();setInterval(poll,2000);
+refreshHistory();setInterval(refreshHistory,60000);
 </script>
 </body>
 </html>

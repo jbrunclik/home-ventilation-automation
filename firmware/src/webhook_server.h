@@ -5,7 +5,7 @@
 #include "history.h"
 #include "tuya_client.h"
 
-enum class PendingAction { NONE, TURN_ON, OFF_COOLDOWN, OFF_IMMEDIATE };
+enum class PendingAction { NONE, OFF_COOLDOWN, OFF_IMMEDIATE };
 
 // Shared state between webhook server and main loop
 struct WebhookState {

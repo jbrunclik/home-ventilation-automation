@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dev server for M5Stack ventilation web UI. Runs on port 2154."""
+"""Dev server for M5Stack ventilation web UI."""
 
 import json
 import math
@@ -10,10 +10,10 @@ from urllib.parse import parse_qs, urlparse
 
 SCRIPT_DIR = Path(__file__).parent
 START_TIME = time.time()
-PORT = 2154
+PORT = 3000
 HISTORY_INTERVAL_S = 300
 
-fan = {"fan_speed": "off", "override_until": 0.0, "manual_override_minutes": 10}
+fan = {"fan_speed": "off", "override_until": 0.0, "manual_override_minutes": 10, "switch_active": False}
 
 
 def get_status() -> dict:
@@ -27,6 +27,7 @@ def get_status() -> dict:
         "humidity": round(55 + 10 * math.sin(t * 0.2), 1),
         "pm25": round(8 + 4 * abs(math.sin(t * 0.15)), 1),
         "fan_speed": fan["fan_speed"],
+        "switch_active": fan["switch_active"],
     }
     remaining = int(fan["override_until"] - now)
     if remaining > 0:
@@ -85,11 +86,8 @@ class Handler(BaseHTTPRequestHandler):
             now = time.time()
             if action == "on":
                 fan["fan_speed"] = "high"
-                fan["override_until"] = now + 24 * 3600
-            elif action == "off_cooldown":
-                fan["fan_speed"] = "high"
                 fan["override_until"] = now + fan["manual_override_minutes"] * 60
-            elif action == "off_immediate":
+            elif action == "cancel":
                 fan["fan_speed"] = "off"
                 fan["override_until"] = 0.0
             print(f"  control: {action} → {fan['fan_speed']}")

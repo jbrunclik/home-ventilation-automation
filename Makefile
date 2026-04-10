@@ -1,5 +1,5 @@
 .PHONY: help dev install lint format test deploy logs status restart \
-       firmware-build firmware-upload firmware-monitor firmware-config firmware-uploadfs
+       firmware-dev firmware-build firmware-upload firmware-monitor firmware-config firmware-uploadfs
 .DEFAULT_GOAL := help
 
 help: ## Show this help
@@ -38,6 +38,9 @@ restart: ## Restart the service
 	systemctl --user restart home-ventilation
 
 # --- Firmware (M5Stack AtomS3R) ---
+
+firmware-dev: ## Run web UI dev server with mock data
+	python3 firmware/web/dev_server.py
 
 firmware-build: ## Build ESP32 firmware
 	cd firmware && pio run
