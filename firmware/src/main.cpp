@@ -285,5 +285,5 @@ void loop() {
     }
 
     // Update display
-    displayUpdate(last_reading, fan_state, WiFi.status() == WL_CONNECTED, now);
+    displayUpdate(last_reading, fan_state, WiFi.status() == WL_CONNECTED, now, history);
 }
