@@ -9,14 +9,15 @@ static FanSpeed prev_speed = FanSpeed::SPEED_OFF;
 static long prev_override_s = -1;  // -1 = no override
 static bool prev_wifi = false;
 
-// Colors
-static constexpr uint16_t COLOR_BG = TFT_BLACK;
-static constexpr uint16_t COLOR_GREEN = 0x07E0;
-static constexpr uint16_t COLOR_YELLOW = 0xFFE0;
-static constexpr uint16_t COLOR_RED = 0xF800;
-static constexpr uint16_t COLOR_BLUE = 0x001F;
-static constexpr uint16_t COLOR_GRAY = 0x7BEF;
-static constexpr uint16_t COLOR_WHITE = TFT_WHITE;
+// Catppuccin Mocha palette (RGB565)
+static constexpr uint16_t COLOR_BG     = 0x18E5;  // Base #1e1e2e
+static constexpr uint16_t COLOR_GREEN  = 0xA714;  // Green #a6e3a1
+static constexpr uint16_t COLOR_YELLOW = 0xFF15;  // Yellow #f9e2af
+static constexpr uint16_t COLOR_RED    = 0xF455;  // Red #f38ba8
+static constexpr uint16_t COLOR_BLUE   = 0x8DBF;  // Blue #89b4fa
+static constexpr uint16_t COLOR_GRAY   = 0xA579;  // Subtext0 #a6adc8
+static constexpr uint16_t COLOR_TEXT   = 0xCEBE;  // Text #cdd6f4
+static constexpr uint16_t COLOR_DIM    = 0x3188;  // Surface0 #313244
 
 static uint16_t co2Color(int co2) {
     if (co2 < 0) return COLOR_GRAY;
@@ -37,7 +38,7 @@ static uint16_t speedColor(FanSpeed speed) {
     switch (speed) {
         case FanSpeed::SPEED_HIGH: return COLOR_RED;
         case FanSpeed::SPEED_LOW: return COLOR_BLUE;
-        default: return COLOR_GRAY;
+        default: return COLOR_DIM;
     }
 }
 
@@ -112,7 +113,7 @@ draw_bar:
     int bar_h = 14;
     M5.Display.fillRect(0, bar_y, 128, bar_h, speedColor(state.current_speed));
     M5.Display.setTextSize(1);
-    M5.Display.setTextColor(COLOR_WHITE, speedColor(state.current_speed));
+    M5.Display.setTextColor(COLOR_TEXT, speedColor(state.current_speed));
     M5.Display.setTextDatum(MC_DATUM);
 
     if (override_s >= 0) {
