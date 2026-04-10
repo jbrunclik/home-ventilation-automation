@@ -1,6 +1,7 @@
 #include "display.h"
 
 #include <M5Unified.h>
+#include <WiFi.h>
 
 // Cached state to avoid unnecessary redraws
 static int prev_co2 = -999;
@@ -79,6 +80,13 @@ void displayUpdate(const TuyaReading& reading, const FanState& state,
     M5.Display.setTextDatum(TL_DATUM);
     M5.Display.setTextColor(wifi_connected ? COLOR_GREEN : COLOR_RED, COLOR_BG);
     M5.Display.drawString(wifi_connected ? "WiFi" : "NO WIFI", 2, 2);
+
+    // IP address (top-right corner)
+    if (wifi_connected) {
+        M5.Display.setTextDatum(TR_DATUM);
+        M5.Display.setTextColor(COLOR_GRAY, COLOR_BG);
+        M5.Display.drawString(WiFi.localIP().toString().c_str(), 126, 2);
+    }
 
     // CO2 value (large, centered)
     M5.Display.setTextDatum(MC_DATUM);
