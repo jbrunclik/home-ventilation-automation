@@ -65,6 +65,7 @@ make firmware-monitor  # open serial monitor (115200 baud)
 make firmware-config   # generate firmware config from config.toml
 make firmware-uploadfs # upload LittleFS filesystem (config) to M5Stack
 make firmware-dev      # run web UI dev server with mock data
+make firmware-clean    # clean PlatformIO build artifacts
 ```
 
 ## Module Map

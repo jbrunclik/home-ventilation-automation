@@ -9,7 +9,7 @@ static M5Canvas canvas(&M5.Display);
 static int prev_co2 = -999;
 static FanSpeed prev_speed = FanSpeed::SPEED_OFF;
 static long prev_override_s = -1;  // -1 = no override
-static bool prev_wifi = false;
+static int prev_rssi = 1;  // impossible value to force first draw
 static int prev_hist_count = -1;
 
 // Catppuccin Mocha palette (RGB565)
@@ -78,8 +78,29 @@ static void drawSparkline(const History& history, int x, int y, int w, int h) {
     }
 }
 
+// RSSI to 0-4 bar count: 0=disconnected, 1=weak, 4=excellent
+static int rssiToBars(int rssi) {
+    if (rssi == 0) return 0;    // disconnected
+    if (rssi >= -55) return 4;  // excellent
+    if (rssi >= -67) return 3;  // good
+    if (rssi >= -75) return 2;  // fair
+    return 1;                   // weak
+}
+
+static void drawRssiBars(int rssi) {
+    int bars = rssiToBars(rssi);
+    int x = 1, y = 2;
+    uint16_t active = bars >= 3 ? COLOR_GREEN : (bars == 2 ? COLOR_YELLOW : COLOR_RED);
+    for (int i = 0; i < 4; i++) {
+        int bar_h = 3 + i * 2;  // heights: 3, 5, 7, 9
+        int bar_y = y + (9 - bar_h);
+        uint16_t color = (i < bars) ? active : COLOR_DIM;
+        canvas.fillRect(x + i * 4, bar_y, 3, bar_h, color);
+    }
+}
+
 void displayUpdate(const TuyaReading& reading, const FanState& state,
-                   bool wifi_connected, unsigned long now_ms,
+                   int wifi_rssi, unsigned long now_ms,
                    const History& history) {
     long override_s = -1;
     if (state.override_until_ms != 0 &&
@@ -91,7 +112,7 @@ void displayUpdate(const TuyaReading& reading, const FanState& state,
     bool bar_changed = (override_s != prev_override_s) ||
                        (state.current_speed != prev_speed);
     bool full_changed = (reading.co2 != prev_co2) ||
-                        (wifi_connected != prev_wifi) ||
+                        (rssiToBars(wifi_rssi) != rssiToBars(prev_rssi)) ||
                         (history.size() != prev_hist_count);
 
     if (!bar_changed && !full_changed) return;
@@ -99,7 +120,7 @@ void displayUpdate(const TuyaReading& reading, const FanState& state,
     prev_co2 = reading.co2;
     prev_speed = state.current_speed;
     prev_override_s = override_s;
-    prev_wifi = wifi_connected;
+    prev_rssi = wifi_rssi;
     prev_hist_count = history.size();
 
     // Compose entire frame in sprite, then push once (no flicker)
@@ -108,9 +129,9 @@ void displayUpdate(const TuyaReading& reading, const FanState& state,
     // CO2 sparkline behind the reading (y: 14..85)
     drawSparkline(history, 0, 14, 128, 72);
 
-    // WiFi status dot (top-left) + IP address (top-right)
-    canvas.fillCircle(4, 5, 3, wifi_connected ? COLOR_GREEN : COLOR_RED);
-    if (wifi_connected) {
+    // WiFi RSSI bars (top-left) + IP address (top-right)
+    drawRssiBars(wifi_rssi);
+    if (wifi_rssi != 0) {
         canvas.setTextSize(1);
         canvas.setTextDatum(TR_DATUM);
         canvas.setTextColor(COLOR_GRAY, COLOR_BG);

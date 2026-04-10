@@ -10,7 +10,7 @@ enum class PendingAction { NONE, OFF_COOLDOWN, OFF_IMMEDIATE };
 // Shared state between webhook server and main loop
 struct WebhookState {
     volatile bool reevaluate = false;
-    bool switch_states[MAX_SWITCH_INPUTS] = {};
+    volatile bool switch_states[MAX_SWITCH_INPUTS] = {};
     volatile PendingAction pending_action = PendingAction::NONE;
 };
 

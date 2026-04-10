@@ -1,6 +1,7 @@
 #include <ArduinoOTA.h>
 #include <M5Unified.h>
 #include <WiFi.h>
+#include <esp_task_wdt.h>
 #include <time.h>
 
 #include "config.h"
@@ -20,7 +21,11 @@ static History history;
 static unsigned long last_sensor_poll = 0;
 static unsigned long last_command_time = 0;
 static unsigned long last_history_record = 0;
+static unsigned long last_wifi_check = 0;
 static bool first_loop = true;
+
+static constexpr unsigned long WIFI_CHECK_INTERVAL_MS = 30000;
+static constexpr uint32_t WDT_TIMEOUT_S = 30;
 
 // Button state for M5Stack physical button
 static unsigned long btn_press_start = 0;
@@ -162,15 +167,30 @@ void setup() {
     webhookServerSetup(config.webhook_port, &webhook_state,
                        &fan_state, &last_reading, &history, &config);
 
+    // Hardware watchdog — reboots if loop() hangs for WDT_TIMEOUT_S
+    esp_task_wdt_init(WDT_TIMEOUT_S, true);
+    esp_task_wdt_add(NULL);
+
     Serial.println("Ready");
 }
 
 void loop() {
+    esp_task_wdt_reset();
+
     M5.update();
     ArduinoOTA.handle();
     webhookServerLoop();
 
     unsigned long now = millis();
+
+    // Periodic WiFi reconnect check
+    if ((now - last_wifi_check) >= WIFI_CHECK_INTERVAL_MS) {
+        last_wifi_check = now;
+        if (WiFi.status() != WL_CONNECTED) {
+            Serial.println("WiFi disconnected, reconnecting...");
+            WiFi.reconnect();
+        }
+    }
 
     // Physical button handling
     // Short press: OFF→ON, ON→off with cooldown
@@ -285,5 +305,6 @@ void loop() {
     }
 
     // Update display
-    displayUpdate(last_reading, fan_state, WiFi.status() == WL_CONNECTED, now, history);
+    int rssi = (WiFi.status() == WL_CONNECTED) ? WiFi.RSSI() : 0;
+    displayUpdate(last_reading, fan_state, rssi, now, history);
 }

@@ -1,5 +1,5 @@
 .PHONY: help dev install lint format test deploy logs status restart \
-       firmware-dev firmware-build firmware-upload firmware-monitor firmware-config firmware-uploadfs
+       firmware-dev firmware-build firmware-upload firmware-monitor firmware-config firmware-uploadfs firmware-clean
 .DEFAULT_GOAL := help
 
 help: ## Show this help
@@ -40,7 +40,7 @@ restart: ## Restart the service
 # --- Firmware (M5Stack AtomS3R) ---
 
 firmware-dev: ## Run web UI dev server with mock data
-	python3 firmware/web/dev_server.py
+	uv run python firmware/web/dev_server.py
 
 firmware-build: ## Build ESP32 firmware
 	cd firmware && pio run
@@ -52,8 +52,11 @@ firmware-monitor: ## Open serial monitor (115200 baud)
 	cd firmware && pio device monitor
 
 firmware-config: ## Generate firmware config from config.toml
-	python3 firmware/scripts/toml2json.py config.toml $(FAN) > firmware/data/config.json
+	uv run python firmware/scripts/toml2json.py config.toml $(FAN) > firmware/data/config.json
 	@echo "Written firmware/data/config.json — edit wifi_ssid/wifi_password before uploading"
 
 firmware-uploadfs: ## Upload LittleFS filesystem (config) to M5Stack
 	cd firmware && pio run --target uploadfs
+
+firmware-clean: ## Clean PlatformIO build artifacts
+	cd firmware && pio run --target clean
