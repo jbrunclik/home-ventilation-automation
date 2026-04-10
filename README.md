@@ -181,7 +181,8 @@ For apartments without a server, the [`firmware/`](firmware/) directory contains
 - **Tuya CO2 sensor** — polls via local TCP protocol 3.5 (AES-GCM encrypted, no cloud)
 - **Shelly 2PM control** — same cover mode API as the Python daemon
 - **Switch webhooks** — Shelly pushes toggle events to the ESP32's HTTP server
-- **128x128 display** — CO2 ppm (color-coded), fan speed, live manual override countdown (updates every second)
+- **128x128 display** — CO2 ppm with sparkline chart (Garmin Edge style), fan speed, live override countdown, Catppuccin Mocha accent colors on black background, flicker-free sprite rendering
+- **Web UI** — single-page dashboard at `http://ventilation.local:8090/` with Catppuccin Mocha theme: live CO2/temp/humidity/PM2.5, fan control toggle, 12h trend charts, fan activity timeline (low=blue, high=red). Controls auto-disable when wall switch is active.
 - **Schedule + hysteresis** — same logic as the Python daemon
 - **OTA updates** — `pio run -t upload --upload-port ventilation.local`
 - **Auto-configures Shelly on boot** — removes existing scripts, sets cover mode, configures webhooks
@@ -196,23 +197,22 @@ For apartments without a server, the [`firmware/`](firmware/) directory contains
 ### Quick Start
 
 ```bash
-cd firmware
-
 # Install PlatformIO (if not already)
 pip install platformio
 
 # Create config from TOML (or copy and edit the example)
-python scripts/toml2json.py ../config.toml shower > data/config.json
-# Edit data/config.json — set wifi_ssid, wifi_password, device IPs
+make firmware-config FAN=shower
+# Edit firmware/data/config.json — set wifi_ssid, wifi_password
 
-# Upload config to ESP32 filesystem
-pio run -t uploadfs
-
-# Build and flash firmware
-pio run -t upload
+# Build and flash firmware + config
+make firmware-upload
+make firmware-uploadfs
 
 # Monitor serial output
-pio device monitor
+make firmware-monitor
+
+# Develop the web UI with mock data
+make firmware-dev  # opens http://localhost:3000
 ```
 
 ### Configuration
@@ -231,12 +231,15 @@ Config is a JSON file on the ESP32's LittleFS filesystem. See [`config.example.j
 
 Use `scripts/toml2json.py` to convert an existing TOML config for a single fan.
 
-### Status Endpoint
+### Endpoints
 
-The ESP32 serves a JSON status page for debugging:
-```bash
-curl http://ventilation.local:8090/status
-```
+| Endpoint | Method | Description |
+|---|---|---|
+| `/` | GET | Web UI dashboard |
+| `/status` | GET | JSON status (CO2, temperature, humidity, PM2.5, fan speed, switch state) |
+| `/api/control?action=on\|cancel` | POST | Manual fan control (on = HIGH with cooldown, cancel = return to auto) |
+| `/api/history` | GET | JSON history for trend charts |
+| `/webhook/shelly` | GET | Shelly switch input webhooks |
 
 ## Deployment
 
