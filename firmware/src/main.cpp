@@ -139,8 +139,6 @@ void setup() {
     Serial.begin(115200);
     Serial.println("\n=== Ventilation Controller ===");
 
-    displaySetup(config.display_rotation);
-
     // Load config
     if (!loadConfig(config)) {
         Serial.println("FATAL: failed to load config");
@@ -152,6 +150,8 @@ void setup() {
         while (true) delay(1000);
     }
     Serial.println("Config loaded");
+
+    displaySetup(config.display_rotation);
 
     connectWiFi();
     syncNTP();
