@@ -30,6 +30,45 @@ uv run home-ventilation --config config.toml
 make deploy
 ```
 
+## Status File
+
+`status_file_path` holds a JSON snapshot for external consumers (the meteo
+dashboard). Contract **version 2**:
+
+```json
+{
+  "version": 2,
+  "written_at": "2026-09-06T05:46:43+00:00",
+  "sensors": [
+    {"label": "Bedroom", "stale": false, "read_at": "...", "changed_at": "...",
+     "ppm": 891, "temperature": 26.0, "humidity": 46.0, "pm25": 2.0},
+    {"label": "Bibi", "stale": true, "read_at": "...", "changed_at": "..."}
+  ],
+  "fans": [
+    {"label": "Shower", "speed": "low", "humidity": 51.2,
+     "humidity_updated_at": "...", "humidity_stale": false}
+  ]
+}
+```
+
+- `written_at` is **daemon liveness only** — it is rewritten every loop
+  iteration, including webhook wakeups, so it says nothing about reading
+  freshness.
+- `read_at` is the last successful poll; `changed_at` the last time the value
+  actually moved. Both are needed: a sensor can answer on the network while its
+  sensing element is dead, which keeps `read_at` current and shows up only in
+  `changed_at`.
+- `stale` is the daemon's verdict — unreachable, frozen, or never read.
+  Consumers trust it rather than re-deriving thresholds they cannot see.
+- **Every configured sensor is always emitted**, even with no data, so a dead
+  sensor is distinguishable from one that was never configured.
+- An absent value key means "no reading". A value is never emitted as `0` to
+  mean missing.
+- `updated_at` is kept as a deprecated alias for `written_at` so a consumer
+  still running v1 logic degrades cleanly.
+
+See `docs/superpowers/specs/2026-09-06-status-freshness-contract-design.md`.
+
 ## Configuration
 
 ### `config.toml`
@@ -42,7 +81,10 @@ make deploy
 | `webhook_host` | Daemon IP for Shelly webhook URLs (required) | — |
 | `webhook_port` | HTTP port for Shelly webhooks (humidity + switch inputs) | 8090 |
 | `sensor_cache_path` | Path for cached webhook sensor data | `/dev/shm/home-ventilation-sensor-cache.json` |
+| `reading_cache_path` | Path for per-sensor read/change timestamps | `/dev/shm/home-ventilation-reading-cache.json` |
+| `status_file_path` | Path for the JSON status snapshot consumers read | `/dev/shm/home-ventilation-status.json` |
 | `humidity_stale_minutes` | Ignore webhook readings older than this | 120 |
+| `frozen_stale_seconds` | Mark a sensor stale when its value has not changed for this long | 1800 |
 | `thresholds.co2_low` | CO2 ppm threshold for LOW speed | 800 |
 | `thresholds.co2_high` | CO2 ppm threshold for HIGH speed | 1200 |
 | `thresholds.humidity_low` | Humidity % threshold for LOW speed | 60.0 |
