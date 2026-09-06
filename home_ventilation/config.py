@@ -52,8 +52,13 @@ class Config:
     webhook_host: str
     webhook_port: int = 8090
     sensor_cache_path: str = "/dev/shm/home-ventilation-sensor-cache.json"
+    reading_cache_path: str = "/dev/shm/home-ventilation-reading-cache.json"
     status_file_path: str = "/dev/shm/home-ventilation-status.json"
     humidity_stale_minutes: int = 120
+    # A sensor value that has not moved in this long is treated as frozen, even
+    # when the device is still answering. Deliberately far larger than the poll
+    # interval: not changing for a minute is normal, for half an hour is not.
+    frozen_stale_seconds: int = 1800
 
 
 def load_config(path: Path) -> Config:
@@ -115,6 +120,13 @@ def load_config(path: Path) -> Config:
     if not status_path.is_absolute():
         status_path = path.parent / status_path
 
+    reading_cache_raw = raw.get(
+        "reading_cache_path", "/dev/shm/home-ventilation-reading-cache.json"
+    )
+    reading_cache_path = Path(reading_cache_raw)
+    if not reading_cache_path.is_absolute():
+        reading_cache_path = path.parent / reading_cache_path
+
     return Config(
         poll_interval_seconds=raw.get("poll_interval_seconds", 30),
         reconciliation_interval_seconds=raw.get("reconciliation_interval_seconds", 60),
@@ -124,6 +136,8 @@ def load_config(path: Path) -> Config:
         webhook_host=webhook_host,
         webhook_port=raw.get("webhook_port", 8090),
         sensor_cache_path=str(cache_path),
+        reading_cache_path=str(reading_cache_path),
         status_file_path=str(status_path),
         humidity_stale_minutes=raw.get("humidity_stale_minutes", 120),
+        frozen_stale_seconds=raw.get("frozen_stale_seconds", 1800),
     )

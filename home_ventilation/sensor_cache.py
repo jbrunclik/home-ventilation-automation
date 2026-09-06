@@ -20,10 +20,10 @@ class SensorCache:
         self._readings: dict[str, SensorReading] = {}
         self._load()
 
-    def update(self, device_id: str, humidity: float) -> None:
+    def update(self, device_id: str, humidity: float, now: datetime | None = None) -> None:
         self._readings[device_id] = SensorReading(
             humidity=humidity,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=now or datetime.now(timezone.utc),
         )
         self._save()
 
@@ -35,6 +35,21 @@ class SensorCache:
         if age_minutes > self._stale_minutes:
             return None
         return reading.humidity
+
+    def get_reading(self, device_id: str) -> SensorReading | None:
+        """Return the raw reading with no staleness filter.
+
+        Fan control uses ``get_humidity``, which drops stale values so they
+        cannot influence a decision. Status reporting needs the value *and* its
+        age, so a dead sensor can be shown as stale rather than vanishing.
+        """
+        return self._readings.get(device_id)
+
+    def is_stale(self, device_id: str, now: datetime) -> bool:
+        reading = self._readings.get(device_id)
+        if reading is None:
+            return True
+        return (now - reading.timestamp).total_seconds() / 60 > self._stale_minutes
 
     def _load(self) -> None:
         if not self._path.exists():

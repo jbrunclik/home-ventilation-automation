@@ -40,6 +40,23 @@ The main loop awaits an `asyncio.Event` with reconciliation timeout — webhooks
 
 Hysteresis: thresholds 2–3 have a dead band (`co2_hysteresis`, `humidity_hysteresis`) to prevent toggling when a sensor hovers near a boundary. The "turn on" threshold is unchanged; the "turn off" threshold is lowered by the hysteresis margin when the fan is already at/above the guarded speed (e.g. OFF→LOW at 800 ppm, LOW→OFF at 750 ppm with `co2_hysteresis=50`).
 
+### Status file contract (version 2)
+
+`/dev/shm/home-ventilation-status.json` is consumed by the meteo dashboard.
+
+- `written_at` is **daemon liveness only**. It is rewritten every loop iteration,
+  including webhook wakeups, so it says nothing about how fresh the readings are.
+- Per-sensor `read_at` (last successful poll) and `changed_at` (last time the
+  value actually moved) carry freshness. Both are needed: a sensor can answer on
+  the network while its sensing element is dead, which keeps `read_at` current
+  and only shows up in `changed_at`.
+- `stale` is the producer's verdict — unreachable, frozen, or never read.
+  Consumers trust it rather than re-deriving thresholds they cannot see.
+- **Every configured sensor is always emitted**, even with no data, so a dead
+  sensor is distinguishable from one that was never configured.
+- An absent value key means "no reading". A value is never emitted as `0` to
+  mean missing — see the zero sentinel below.
+
 ### Tuya CO2 sensors
 - Category `co2bj` (AIR_DETECTOR), protocol 3.5
 - DP 2 = `co2_value` (ppm), DP 18 = `temperature` (°C), DP 19 = `humidity` (%), DP 101 = `pm25` (µg/m³)
@@ -47,6 +64,11 @@ Hysteresis: thresholds 2–3 have a dead band (`co2_hysteresis`, `humidity_hyste
 - tinytuya is synchronous — all calls wrapped with `asyncio.to_thread()`
 - On startup: alarm disabled (DP 13 → False, DP 17 → 0)
 - Local key retrieved once from Tuya IoT Developer Platform, stored in `config.toml`
+- **Zero sentinel**: these sensors report DP 18 and DP 19 as exactly `0` together when the
+  sensing element is not measuring. Physically implausible indoors, so `_parse_dps` drops
+  temperature, humidity and PM2.5 in that case rather than emitting zeros as data (PM2.5 fails
+  the same way and would otherwise render as a healthy 0 µg/m³). CO2 is kept — it can still be
+  plausible but frozen, which `reading_cache.py` catches instead.
 
 ## Commands
 
@@ -78,6 +100,7 @@ make firmware-clean    # clean PlatformIO build artifacts
 | `tuya.py` | Tuya local API client (sensor polling + device config) |
 | `shelly.py` | Shelly Gen2+ RPC client (relays + inputs + cover refresh + device setup) |
 | `webhook.py` | aiohttp webhook server (humidity + switch input from Shelly devices) |
+| `reading_cache.py` | Per-device read/change timestamps for Tuya readings (freshness detection) |
 | `status_writer.py` | Atomic JSON status snapshot for external consumers (dashboard) |
 | `daemon.py` | Event-driven main loop, orchestration |
 | `__main__.py` | CLI entry point |

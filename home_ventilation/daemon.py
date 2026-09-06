@@ -10,6 +10,7 @@ from home_ventilation.config import Config
 from home_ventilation.fan import decide_speed
 from home_ventilation.models import FanSpeed, FanState, TuyaSensorReading
 from home_ventilation.sensor_cache import SensorCache
+from home_ventilation.reading_cache import SENSOR_STALE_MULTIPLIER, ReadingCache
 from home_ventilation.status_writer import write_status
 from home_ventilation.shelly import (
     configure_humidity_sensor,
@@ -61,6 +62,11 @@ async def run(config: Config) -> None:
     reevaluate = asyncio.Event()
 
     sensor_cache = SensorCache(config.sensor_cache_path, config.humidity_stale_minutes)
+    reading_cache = ReadingCache(
+        config.reading_cache_path,
+        stale_after_seconds=SENSOR_STALE_MULTIPLIER * config.poll_interval_seconds,
+        frozen_after_seconds=config.frozen_stale_seconds,
+    )
     webhook_app = create_webhook_app(sensor_cache, switch_store, reevaluate)
     webhook_runner = await start_webhook_server(webhook_app, config.webhook_port)
 
@@ -127,11 +133,11 @@ async def run(config: Config) -> None:
                     if read_sensors:
                         readings: list[TuyaSensorReading | None] = []
                         for sensor in fan_cfg.co2_sensors:
-                            readings.append(
-                                await poll_tuya_sensor(
-                                    sensor.device_id, sensor.ip, sensor.local_key
-                                )
+                            reading = await poll_tuya_sensor(
+                                sensor.device_id, sensor.ip, sensor.local_key
                             )
+                            reading_cache.observe(sensor.device_id, reading, now)
+                            readings.append(reading)
                         cached_readings[fan_cfg.name] = readings
 
                     # Webhook humidity: read fresh every cycle (in-memory lookup)
@@ -207,6 +213,7 @@ async def run(config: Config) -> None:
                 fan_states,
                 cached_readings,
                 sensor_cache,
+                reading_cache,
                 now,
             )
 
