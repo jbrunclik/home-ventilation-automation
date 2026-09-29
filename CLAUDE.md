@@ -50,6 +50,9 @@ Hysteresis: thresholds 2–3 have a dead band (`co2_hysteresis`, `humidity_hyste
   value actually moved) carry freshness. Both are needed: a sensor can answer on
   the network while its sensing element is dead, which keeps `read_at` current
   and only shows up in `changed_at`.
+- A poll that comes back empty keeps serving the last reading (to the status
+  file and to fan control) until the unreachable window expires. `read_at` is
+  not advanced, so it still says when the device last actually answered.
 - `stale` is the producer's verdict — unreachable, frozen, or never read.
   Consumers trust it rather than re-deriving thresholds they cannot see.
 - **Every configured sensor is always emitted**, even with no data, so a dead

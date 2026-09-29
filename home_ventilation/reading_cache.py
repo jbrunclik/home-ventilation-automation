@@ -60,6 +60,21 @@ class ReadingCache:
         entry = self._entries.get(device_id)
         return entry.changed_at if entry else None
 
+    def recent(self, device_id: str, now: datetime) -> TuyaSensorReading | None:
+        """The last reading, while it is inside the unreachable window.
+
+        Stands in for a poll that came back empty. A single failed poll is
+        routine for these sensors; without this, it blanked the dashboard and
+        dropped the sensor from fan control for a cycle. Past the window the
+        device counts as unreachable and this returns None, as before.
+        """
+        entry = self._entries.get(device_id)
+        if entry is None:
+            return None
+        if (now - entry.read_at).total_seconds() > self._stale_after_seconds:
+            return None
+        return entry.reading
+
     def is_stale(self, device_id: str, now: datetime) -> bool:
         """True when the device is unreachable, frozen, or has never been read."""
         entry = self._entries.get(device_id)

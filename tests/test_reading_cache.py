@@ -144,3 +144,26 @@ def test_change_in_any_field_counts(tmp_path):
     cache.observe("dev1", TuyaSensorReading(co2=800, pm25=3.0), later)
 
     assert cache.changed_at("dev1") == later
+
+
+def test_recent_bridges_a_failed_poll(tmp_path):
+    """One empty poll used to blank the dashboard and drop the sensor from
+    fan control for a cycle, although the last reading was seconds old."""
+    cache = _cache(tmp_path)
+    reading = TuyaSensorReading(co2=1329, pm25=7.0)
+    cache.observe("dev1", reading, NOW)
+    cache.observe("dev1", None, NOW + timedelta(seconds=30))
+
+    assert cache.recent("dev1", NOW + timedelta(seconds=30)) == reading
+
+
+def test_recent_expires_with_the_unreachable_window(tmp_path):
+    cache = _cache(tmp_path)
+    cache.observe("dev1", TuyaSensorReading(co2=800), NOW)
+
+    assert cache.recent("dev1", NOW + timedelta(seconds=STALE_AFTER)) is not None
+    assert cache.recent("dev1", NOW + timedelta(seconds=STALE_AFTER + 1)) is None
+
+
+def test_recent_of_never_read_device_is_none(tmp_path):
+    assert _cache(tmp_path).recent("unknown", NOW) is None

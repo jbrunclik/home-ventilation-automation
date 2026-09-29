@@ -137,6 +137,8 @@ async def run(config: Config) -> None:
                                 sensor.device_id, sensor.ip, sensor.local_key
                             )
                             reading_cache.observe(sensor.device_id, reading, now)
+                            if reading is None:
+                                reading = reading_cache.recent(sensor.device_id, now)
                             readings.append(reading)
                         cached_readings[fan_cfg.name] = readings
 
