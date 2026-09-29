@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from home_ventilation.config import FanConfig
@@ -73,7 +73,7 @@ def write_status(
         if humidity is not None:
             value, updated_at, is_stale = humidity
             entry["humidity"] = value
-            entry["humidity_updated_at"] = updated_at.astimezone(timezone.utc).isoformat()
+            entry["humidity_updated_at"] = updated_at.astimezone(UTC).isoformat()
             entry["humidity_stale"] = is_stale
         fans.append(entry)
 
@@ -89,10 +89,10 @@ def write_status(
 
             read_at = reading_cache.read_at(sensor.device_id)
             if read_at is not None:
-                entry["read_at"] = read_at.astimezone(timezone.utc).isoformat()
+                entry["read_at"] = read_at.astimezone(UTC).isoformat()
             changed_at = reading_cache.changed_at(sensor.device_id)
             if changed_at is not None:
-                entry["changed_at"] = changed_at.astimezone(timezone.utc).isoformat()
+                entry["changed_at"] = changed_at.astimezone(UTC).isoformat()
 
             if reading is not None:
                 if reading.co2 is not None:
@@ -112,11 +112,11 @@ def write_status(
         # Daemon liveness only. This is written every loop iteration, including
         # webhook wakeups, so it says nothing about how fresh the readings are —
         # per-sensor read_at/changed_at carry that.
-        "written_at": now.astimezone(timezone.utc).isoformat(),
+        "written_at": now.astimezone(UTC).isoformat(),
         # Deprecated alias for written_at, kept so a consumer still running
         # v1 logic degrades cleanly across the deploy window. Remove once
         # every consumer reads version 2.
-        "updated_at": now.astimezone(timezone.utc).isoformat(),
+        "updated_at": now.astimezone(UTC).isoformat(),
     }
 
     target = Path(path)

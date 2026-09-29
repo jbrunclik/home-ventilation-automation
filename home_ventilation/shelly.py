@@ -266,7 +266,7 @@ async def configure_humidity_sensor(
         # Check reachability
         resp = await client.get(f"http://{host}/rpc/Shelly.GetDeviceInfo", timeout=3.0)
         resp.raise_for_status()
-    except Exception:
+    except (httpx.HTTPError, httpx.InvalidURL):
         logger.warning("H&T sensor %s unreachable (likely asleep) — skipping", host)
         return
 

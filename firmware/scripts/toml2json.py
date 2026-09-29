@@ -36,7 +36,7 @@ def convert(toml_path: str, fan_name: str | None = None) -> dict:
     sensors = fan.get("co2_sensors", {})
     co2_sensor = None
     if sensors:
-        name, data = next(iter(sensors.items()))
+        _name, data = next(iter(sensors.items()))
         co2_sensor = {
             "device_id": data["device_id"],
             "ip": data["ip"],

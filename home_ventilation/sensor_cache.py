@@ -1,7 +1,7 @@
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class SensorCache:
     def update(self, device_id: str, humidity: float, now: datetime | None = None) -> None:
         self._readings[device_id] = SensorReading(
             humidity=humidity,
-            timestamp=now or datetime.now(timezone.utc),
+            timestamp=now or datetime.now(UTC),
         )
         self._save()
 
@@ -64,7 +64,8 @@ class SensorCache:
             logger.info(
                 "Loaded %d cached sensor readings from %s", len(self._readings), self._path
             )
-        except Exception:
+        # Unreadable, not JSON, wrong shape, or a bad timestamp: start fresh.
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
             logger.warning("Failed to load sensor cache from %s, starting fresh", self._path)
 
     def _save(self) -> None:
@@ -76,5 +77,5 @@ class SensorCache:
             }
         try:
             self._path.write_text(json.dumps(data, indent=2) + "\n")
-        except Exception:
+        except OSError:
             logger.warning("Failed to save sensor cache to %s", self._path)

@@ -1,15 +1,15 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from home_ventilation.sensor_cache import SensorCache
 
-NOW = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 1, 15, 12, 0, 0, tzinfo=UTC)
 STALE_MINUTES = 120
 
 
 def test_update_and_get(tmp_path):
     cache = SensorCache(str(tmp_path / "cache.json"), STALE_MINUTES)
     cache.update("10.0.0.50", 65.2)
-    result = cache.get_humidity("10.0.0.50", datetime.now(timezone.utc))
+    result = cache.get_humidity("10.0.0.50", datetime.now(UTC))
     assert result == 65.2
 
 
@@ -21,14 +21,14 @@ def test_unknown_device_returns_none(tmp_path):
 def test_stale_reading_returns_none(tmp_path):
     cache = SensorCache(str(tmp_path / "cache.json"), STALE_MINUTES)
     cache.update("10.0.0.50", 65.2)
-    future = datetime.now(timezone.utc) + timedelta(minutes=STALE_MINUTES + 1)
+    future = datetime.now(UTC) + timedelta(minutes=STALE_MINUTES + 1)
     assert cache.get_humidity("10.0.0.50", future) is None
 
 
 def test_fresh_reading_returns_value(tmp_path):
     cache = SensorCache(str(tmp_path / "cache.json"), STALE_MINUTES)
     cache.update("10.0.0.50", 70.0)
-    soon = datetime.now(timezone.utc) + timedelta(minutes=5)
+    soon = datetime.now(UTC) + timedelta(minutes=5)
     assert cache.get_humidity("10.0.0.50", soon) == 70.0
 
 
@@ -40,7 +40,7 @@ def test_persistence_roundtrip(tmp_path):
 
     # New instance loads from disk
     cache2 = SensorCache(path, STALE_MINUTES)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     assert cache2.get_humidity("10.0.0.50", now) == 65.2
     assert cache2.get_humidity("10.0.0.52", now) == 70.0
 

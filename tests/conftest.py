@@ -1,6 +1,5 @@
 from home_ventilation.config import ThresholdsConfig
 
-
 DEFAULT_THRESHOLDS = ThresholdsConfig(
     co2_low=800,
     co2_high=1200,

@@ -9,9 +9,8 @@ import httpx
 from home_ventilation.config import Config
 from home_ventilation.fan import decide_speed
 from home_ventilation.models import FanSpeed, FanState, TuyaSensorReading
-from home_ventilation.sensor_cache import SensorCache
 from home_ventilation.reading_cache import SENSOR_STALE_MULTIPLIER, ReadingCache
-from home_ventilation.status_writer import write_status
+from home_ventilation.sensor_cache import SensorCache
 from home_ventilation.shelly import (
     configure_humidity_sensor,
     configure_shelly_device,
@@ -19,6 +18,7 @@ from home_ventilation.shelly import (
     refresh_fan_speed,
     set_fan_speed,
 )
+from home_ventilation.status_writer import write_status
 from home_ventilation.tuya import configure_tuya_sensor, poll_tuya_sensor
 from home_ventilation.webhook import create_webhook_app, start_webhook_server
 
@@ -229,7 +229,7 @@ async def run(config: Config) -> None:
             )
             try:
                 await asyncio.wait_for(reevaluate.wait(), timeout=timeout)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass  # scheduled tick (poll or reconciliation)
             reevaluate.clear()
 

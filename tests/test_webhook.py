@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -36,7 +36,7 @@ async def test_valid_humidity_param(webhook_client, sensor_cache, reevaluate):
     resp = await client.get("/webhook/shelly", params={"hum": "65.2"})
     assert resp.status == 200
 
-    result = sensor_cache.get_humidity("127.0.0.1", datetime.now(timezone.utc))
+    result = sensor_cache.get_humidity("127.0.0.1", datetime.now(UTC))
     assert result == 65.2
     assert reevaluate.is_set()
 
@@ -46,7 +46,7 @@ async def test_no_recognized_param(webhook_client, sensor_cache, reevaluate):
     resp = await client.get("/webhook/shelly")
     assert resp.status == 200
 
-    result = sensor_cache.get_humidity("127.0.0.1", datetime.now(timezone.utc))
+    result = sensor_cache.get_humidity("127.0.0.1", datetime.now(UTC))
     assert result is None
     assert not reevaluate.is_set()
 

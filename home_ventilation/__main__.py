@@ -7,6 +7,8 @@ from pathlib import Path
 from home_ventilation.config import load_config
 from home_ventilation.daemon import run
 
+logger = logging.getLogger("home_ventilation")
+
 
 def _httpx_debug_filter(record: logging.LogRecord) -> bool:
     """Downgrade httpx INFO messages to DEBUG so they only appear at DEBUG level."""
@@ -49,11 +51,12 @@ def main() -> None:
 
     try:
         config = load_config(args.config)
-    except Exception as e:
-        logging.error("Failed to load config: %s", e)
+    # Missing file, bad TOML, or a missing/mistyped key — all fatal at startup.
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        logger.error("Failed to load config: %s", e)
         sys.exit(1)
 
-    logging.info("Config loaded from %s", args.config)
+    logger.info("Config loaded from %s", args.config)
     asyncio.run(run(config))
 
 

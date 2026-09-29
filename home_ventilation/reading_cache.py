@@ -96,7 +96,8 @@ class ReadingCache:
                     changed_at=datetime.fromisoformat(entry["changed_at"]),
                 )
             logger.info("Loaded %d cached readings from %s", len(self._entries), self._path)
-        except Exception:
+        # Unreadable, not JSON, wrong shape, or a bad timestamp: start fresh.
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
             self._entries = {}
             logger.warning("Failed to load reading cache from %s, starting fresh", self._path)
 
@@ -115,5 +116,5 @@ class ReadingCache:
             }
         try:
             self._path.write_text(json.dumps(data, indent=2) + "\n")
-        except Exception:
+        except OSError:
             logger.warning("Failed to save reading cache to %s", self._path)

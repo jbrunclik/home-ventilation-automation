@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from home_ventilation.config import ScheduleConfig
 from home_ventilation.fan import decide_speed
@@ -11,7 +11,7 @@ SCHEDULE_WITH_CAP = ScheduleConfig(
     start_hour=22, end_hour=7, run_minutes=10, speed="low", max_speed="low"
 )
 
-NOW = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 1, 15, 12, 0, 0, tzinfo=UTC)
 OVERRIDE_MINUTES = 15
 
 
@@ -352,7 +352,7 @@ def test_no_previous_switch_state_switch_on():
 
 
 def test_schedule_active_at_night():
-    night = datetime(2026, 1, 15, 23, 5, 0, tzinfo=timezone.utc)
+    night = datetime(2026, 1, 15, 23, 5, 0, tzinfo=UTC)
     speed, _ = decide_speed(
         co2_values=[400],
         humidity_values=[40.0],
@@ -367,7 +367,7 @@ def test_schedule_active_at_night():
 
 
 def test_schedule_inactive_after_run_minutes():
-    night = datetime(2026, 1, 15, 23, 15, 0, tzinfo=timezone.utc)
+    night = datetime(2026, 1, 15, 23, 15, 0, tzinfo=UTC)
     speed, _ = decide_speed(
         co2_values=[400],
         humidity_values=[40.0],
@@ -382,7 +382,7 @@ def test_schedule_inactive_after_run_minutes():
 
 
 def test_schedule_inactive_during_day():
-    day = datetime(2026, 1, 15, 14, 5, 0, tzinfo=timezone.utc)
+    day = datetime(2026, 1, 15, 14, 5, 0, tzinfo=UTC)
     speed, _ = decide_speed(
         co2_values=[400],
         humidity_values=[40.0],
@@ -397,7 +397,7 @@ def test_schedule_inactive_during_day():
 
 
 def test_schedule_active_after_midnight():
-    early = datetime(2026, 1, 15, 3, 5, 0, tzinfo=timezone.utc)
+    early = datetime(2026, 1, 15, 3, 5, 0, tzinfo=UTC)
     speed, _ = decide_speed(
         co2_values=[400],
         humidity_values=[40.0],
@@ -413,7 +413,7 @@ def test_schedule_active_after_midnight():
 
 def test_schedule_boundary_at_end_hour():
     """At exactly end_hour:00, schedule should be inactive."""
-    boundary = datetime(2026, 1, 15, 7, 5, 0, tzinfo=timezone.utc)
+    boundary = datetime(2026, 1, 15, 7, 5, 0, tzinfo=UTC)
     speed, _ = decide_speed(
         co2_values=[400],
         humidity_values=[40.0],
@@ -428,7 +428,7 @@ def test_schedule_boundary_at_end_hour():
 
 
 def test_humidity_overrides_schedule():
-    night = datetime(2026, 1, 15, 23, 5, 0, tzinfo=timezone.utc)
+    night = datetime(2026, 1, 15, 23, 5, 0, tzinfo=UTC)
     speed, _ = decide_speed(
         co2_values=[400],
         humidity_values=[75.0],
@@ -443,7 +443,7 @@ def test_humidity_overrides_schedule():
 
 
 def test_no_schedule_returns_off():
-    night = datetime(2026, 1, 15, 23, 5, 0, tzinfo=timezone.utc)
+    night = datetime(2026, 1, 15, 23, 5, 0, tzinfo=UTC)
     speed, _ = decide_speed(
         co2_values=[400],
         humidity_values=[40.0],
@@ -667,7 +667,7 @@ def test_co2_hysteresis_exact_boundary():
 
 def test_max_speed_caps_co2_high_to_low_at_night():
     """CO2 >1200 would normally give HIGH, but max_speed caps to LOW at night."""
-    night = datetime(2026, 1, 15, 23, 30, 0, tzinfo=timezone.utc)
+    night = datetime(2026, 1, 15, 23, 30, 0, tzinfo=UTC)
     speed, _ = decide_speed(
         co2_values=[1500],
         humidity_values=[40.0],
@@ -683,7 +683,7 @@ def test_max_speed_caps_co2_high_to_low_at_night():
 
 def test_max_speed_caps_humidity_high_to_low_at_night():
     """Humidity >70 would normally give HIGH, but max_speed caps to LOW at night."""
-    night = datetime(2026, 1, 15, 23, 30, 0, tzinfo=timezone.utc)
+    night = datetime(2026, 1, 15, 23, 30, 0, tzinfo=UTC)
     speed, _ = decide_speed(
         co2_values=[400],
         humidity_values=[80.0],
@@ -699,7 +699,7 @@ def test_max_speed_caps_humidity_high_to_low_at_night():
 
 def test_max_speed_no_effect_during_day():
     """max_speed doesn't apply outside the schedule window."""
-    day = datetime(2026, 1, 15, 14, 0, 0, tzinfo=timezone.utc)
+    day = datetime(2026, 1, 15, 14, 0, 0, tzinfo=UTC)
     speed, _ = decide_speed(
         co2_values=[1500],
         humidity_values=[40.0],
@@ -715,7 +715,7 @@ def test_max_speed_no_effect_during_day():
 
 def test_max_speed_switch_override_bypasses_cap():
     """Switch override should bypass the max_speed cap."""
-    night = datetime(2026, 1, 15, 23, 30, 0, tzinfo=timezone.utc)
+    night = datetime(2026, 1, 15, 23, 30, 0, tzinfo=UTC)
     speed, _ = decide_speed(
         co2_values=[400],
         humidity_values=[40.0],
@@ -731,7 +731,7 @@ def test_max_speed_switch_override_bypasses_cap():
 
 def test_max_speed_does_not_raise_low_to_high():
     """max_speed=low should not affect a speed that's already LOW."""
-    night = datetime(2026, 1, 15, 23, 30, 0, tzinfo=timezone.utc)
+    night = datetime(2026, 1, 15, 23, 30, 0, tzinfo=UTC)
     speed, _ = decide_speed(
         co2_values=[900],
         humidity_values=[40.0],
@@ -747,7 +747,7 @@ def test_max_speed_does_not_raise_low_to_high():
 
 def test_cap_only_no_periodic_run():
     """run_minutes=0 with max_speed: no periodic runs, but cap still applies."""
-    night = datetime(2026, 1, 15, 23, 5, 0, tzinfo=timezone.utc)
+    night = datetime(2026, 1, 15, 23, 5, 0, tzinfo=UTC)
     speed, _ = decide_speed(
         co2_values=[400],
         humidity_values=[40.0],
@@ -763,7 +763,7 @@ def test_cap_only_no_periodic_run():
 
 def test_schedule_with_cap_periodic_still_works():
     """Schedule with both run_minutes and max_speed: periodic runs still work."""
-    night = datetime(2026, 1, 15, 23, 5, 0, tzinfo=timezone.utc)
+    night = datetime(2026, 1, 15, 23, 5, 0, tzinfo=UTC)
     speed, _ = decide_speed(
         co2_values=[400],
         humidity_values=[40.0],

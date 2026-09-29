@@ -1,9 +1,9 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from home_ventilation.models import TuyaSensorReading
 from home_ventilation.reading_cache import ReadingCache
 
-NOW = datetime(2026, 9, 6, 10, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 9, 6, 10, 0, 0, tzinfo=UTC)
 
 STALE_AFTER = 120
 FROZEN_AFTER = 1800

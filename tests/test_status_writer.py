@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from home_ventilation.config import FanConfig, TuyaDeviceConfig
 from home_ventilation.models import FanSpeed, FanState, TuyaSensorReading
@@ -7,7 +7,7 @@ from home_ventilation.reading_cache import ReadingCache
 from home_ventilation.sensor_cache import SensorCache
 from home_ventilation.status_writer import write_status
 
-NOW = datetime(2026, 3, 25, 10, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 3, 25, 10, 0, 0, tzinfo=UTC)
 
 STALE_AFTER = 120
 FROZEN_AFTER = 1800
